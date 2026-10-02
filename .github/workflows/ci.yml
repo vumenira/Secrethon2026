@@ -1,0 +1,16 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install (shockbench-flow, the rl extra, the test tools)
+        run: uv sync --locked --all-extras
+      - name: Tests (the examples on Tiny, the CLI, upload against a local mock of Codabench)
+        run: uv run pytest -n 3

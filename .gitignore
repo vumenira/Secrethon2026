@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+/build/
+/dist/
+.venv/
+
+# tools
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.coverage
+
+# secrets: .env holds your Codabench token
+.env
+.env.*
+!.env.example
+
+# editors and systems
+.idea/
+.vscode/
+.DS_Store
+
+# run folders and zips (the examples and `sbf pack` write here)
+/outputs/

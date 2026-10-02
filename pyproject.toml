@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shockbench-flow-starter"
+version = "0.1.0"
+description = "Starter kit for the ShockBench-Flow hackathon: examples, submission agents and submission tools"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "nuinashco", email = "nuinashco@users.noreply.github.com" }
+]
+keywords = ["gymnasium", "reinforcement-learning", "benchmark", "hackathon"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# the scoring image runs 3.13; its SciPy needs 3.12 or later
+requires-python = ">=3.12,<3.14"
+
+dependencies = [
+    "shockbench-flow[gym] >= 0.1.2",  # the benchmark; uv.lock holds the exact version (README, "Updating")
+    "fire ~= 0.7.1",
+    "python-dotenv ~= 1.2.2",  # `sbf` reads .env
+]
+
+[project.optional-dependencies]
+# examples/05_train_ppo.py: `uv sync --extra rl`
+rl = ["shockbench-flow[rl] >= 0.1.2"]
+
+[project.scripts]
+sbf = "sbf_starter.cli:main"
+
+[dependency-groups]
+dev = ["ruff", "pytest", "pytest-xdist"]
+
+[tool.uv.sources]
+# the CPU build on Linux (PyPI's Linux wheel bundles CUDA)
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sbf_starter"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-first-party = ["sbf_starter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-ra"
+markers = ["docker: builds the scoring container locally and needs a Docker daemon; run with --docker"]

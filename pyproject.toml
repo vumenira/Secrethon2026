@@ -54,6 +54,7 @@ packages = ["src/sbf_starter"]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+extend-exclude = ["agents/*/sbflow"]  # shockbench-flow's own code, copied by scripts/vendor_planner.py
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

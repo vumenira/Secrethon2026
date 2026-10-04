@@ -40,6 +40,7 @@ agents/<name>/     # one submission folder per agent: agent.py and the files it 
 examples/          # 01_quickstart.py ... 07_dashboard.py, each self-contained; ppo_agent.py is the PPO submission's agent.py
 src/sbf_starter/   # the `sbf` CLI (cli.py), scoring.py, check.py (isolated timed run), container.py (--docker),
                    #   codabench.py (token, upload, status), agents.py (names -> folders), play.py (closures)
+                   #   viewer/ (`sbf view`: export.py turns a record into JSON, page.html draws it, one file)
 scripts/           # fields_docs.py: regenerates docs/fields/ from the installed shockbench-flow
 docs/              # GUIDE.md, fields/ (every observation and action field), img/
 tests/             # uv run pytest -n 3
@@ -57,6 +58,7 @@ Always run Python through `uv run` (the locked environment). `AGENT` is a name
 | A new agent                   | `cp -r agents/template agents/mine`                                      |
 | Score locally                 | `uv run sbf evaluate mine` (`--task=small`, `--quick`, `--episodes=...`) |
 | Compare two agents            | `uv run sbf compare mine template` (a paired interval)                   |
+| See an agent's episodes       | `uv run sbf view mine` (`--task=small`, `--episode=N`; page in `outputs/view/`) |
 | Check as the server does      | `uv run sbf check mine --task=small` (`--docker`: the real container)    |
 | Pack a zip                    | `uv run sbf pack mine` (to `outputs/mine.zip`)                           |
 | Codabench token, once         | `uv run sbf token` (the participant types the password; not an agent)   |

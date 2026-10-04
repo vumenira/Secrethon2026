@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShockBench Flow Viewer</title>
+<style>
+:root {
+  --bg0: #05070d; --bg1: #0a0f1e;
+  --panel: rgba(14, 19, 35, 0.88); --panel2: rgba(22, 29, 52, 0.9);
+  --line: rgba(128, 150, 214, 0.16); --line2: rgba(128, 150, 214, 0.28);
+  --text: #e6e9f3; --muted: #8f98b2; --dim: #5d6683;
+  --accent: #67e8f9; --accent2: #c084fc;
+  --good: #22c55e; --warn: #eab308; --serious: #f97316; --bad: #ef4444;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #2c3654 transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #2c3654; border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1100px 650px at 12% -8%, rgba(56, 102, 214, 0.28), transparent 62%),
+    radial-gradient(900px 620px at 105% 108%, rgba(168, 85, 247, 0.18), transparent 60%),
+    radial-gradient(700px 500px at 60% 40%, rgba(20, 184, 166, 0.07), transparent 70%),
+    linear-gradient(180deg, var(--bg1), var(--bg0));
+  background-attachment: fixed;
+  display: grid; grid-template-rows: auto 1fr auto; overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+button, select, input { font: inherit; color: inherit; }
+button {
+  background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px;
+  padding: 4px 10px; cursor: pointer; line-height: 1.3;
+}
+button:hover { border-color: var(--accent); color: #fff; }
+button.on { background: rgba(103, 232, 249, 0.14); border-color: var(--accent); color: var(--accent); }
+select { background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px; padding: 4px 8px; }
+a { color: var(--accent); }
+
+/* header */
+header {
+  display: flex; align-items: center; gap: 14px; padding: 10px 16px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--line); background: rgba(6, 9, 18, 0.55);
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: 0.2px; }
+.brand .logo {
+  width: 26px; height: 26px; border-radius: 8px;
+  background: radial-gradient(circle at 30% 30%, #67e8f9, #6366f1 55%, #a855f7);
+  box-shadow: 0 0 18px rgba(103, 232, 249, 0.45);
+}
+.brand small { color: var(--muted); font-weight: 400; }
+.chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.chip { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line2); color: var(--muted); }
+.chip b { color: var(--text); font-weight: 600; }
+.kpis { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.kpi {
+  min-width: 108px; padding: 5px 11px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--line);
+}
+.kpi .l { color: var(--muted); font-size: 11px; }
+.kpi .v { font-size: 16px; font-weight: 650; }
+.pos { color: var(--good); } .neg { color: var(--bad); }
+
+/* main */
+main { display: grid; grid-template-columns: 1fr 400px; min-height: 0; }
+#mapwrap {
+  position: relative; min-height: 0; overflow: hidden;
+  background-image: radial-gradient(rgba(160, 180, 255, 0.075) 1px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+#map { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
+#map.drag { cursor: grabbing; }
+aside {
+  border-left: 1px solid var(--line); background: rgba(8, 11, 22, 0.72);
+  display: flex; flex-direction: column; min-height: 0;
+}
+@media (max-width: 980px) {
+  body { overflow: auto; grid-template-rows: auto auto auto; }
+  main { grid-template-columns: 1fr; }
+  #mapwrap { height: 62vh; }
+  aside { border-left: 0; border-top: 1px solid var(--line); }
+  .kpis { margin-left: 0; }
+}
+
+/* map overlays */
+.card {
+  position: absolute; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+#banner { top: 12px; left: 50%; transform: translateX(-50%); padding: 6px 16px; text-align: center; pointer-events: none; max-width: 60%; }
+#banner .wk { font-size: 20px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+#banner .wk span { color: var(--muted); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+#banner .bev { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ctl { top: 12px; left: 12px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+#ctl button { text-align: left; font-size: 12px; }
+#legend { right: 12px; top: 12px; width: 228px; max-height: calc(100% - 24px); overflow: auto; padding: 10px 12px; font-size: 12px; }
+#legend.closed { width: auto; padding: 6px 10px; }
+#legend.closed .body { display: none; }
+#legend h4 { margin: 10px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+#legend .row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+#legend .row svg { flex: none; }
+#legend .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+#legend .note { color: var(--dim); font-size: 11px; margin-top: 6px; }
+
+/* svg */
+.e path { fill: none; }
+.e .eb { stroke-width: 1.3; opacity: 0.9; }
+.e .eg { stroke: var(--bad); stroke-width: 7; opacity: 0.18; display: none; }
+.e.closed .eg { display: inline; }
+.e.reduced .eg { display: inline; stroke: var(--serious); opacity: 0.12; }
+.e .ef2 { stroke-linecap: round; opacity: 0.22; display: none; }
+.e .ef { stroke-linecap: round; opacity: 0.95; display: none; }
+.e.flow .ef, .e.flow .ef2 { display: inline; }
+.e .eh { stroke: transparent; stroke-width: 11; pointer-events: stroke; cursor: pointer; }
+.e .ecap { font-size: 9.5px; fill: #aab3cc; text-anchor: middle; paint-order: stroke; stroke: #070a14; stroke-width: 3px; pointer-events: none; display: none; }
+.showcap .e.cap .ecap { display: inline; }
+.e.reduced .ecap { fill: #fdba74; }
+.e.closed .ecap { fill: #fca5a5; }
+.e path, .e text { pointer-events: none; }
+.e .eh { pointer-events: stroke; }
+.n { cursor: pointer; }
+.n .halo { opacity: 0.75; transition: opacity 0.15s; }
+.n:hover .halo, .n.sel .halo { opacity: 1; }
+.n .ns { stroke: #070a14; stroke-width: 1.6; }
+.n.sel .ns { stroke: #fff; stroke-width: 2.2; }
+.n .nl { font-size: 10.5px; fill: #c4cbe0; text-anchor: middle; paint-order: stroke; stroke: #070a14; stroke-width: 3px; pointer-events: none; }
+.n .nb { font-size: 10px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #070a14; stroke-width: 3px; pointer-events: none; }
+.hidenames .n .nl { display: none; }
+.focus .e:not(.hl) { opacity: 0.12; }
+.focus .n:not(.hl) { opacity: 0.35; }
+.focus #dots { opacity: 0.35; }
+#dots circle { stroke-width: 3; stroke-opacity: 0.28; cursor: pointer; }
+
+/* side panel */
+.tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tabs button { border: 0; border-radius: 8px 8px 0 0; background: transparent; color: var(--muted); padding: 7px 11px; }
+.tabs button.on { background: var(--panel2); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.panel { display: none; overflow: auto; padding: 12px 14px 18px; flex: 1; min-height: 0; }
+.panel.on { display: block; }
+.panel h3 { margin: 14px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+.panel h3:first-child { margin-top: 0; }
+.chart { width: 100%; cursor: crosshair; }
+.chart svg { display: block; }
+.chart .ax { fill: var(--dim); font-size: 10px; }
+.chart .gl { stroke: rgba(128, 150, 214, 0.1); }
+.chart .cur { stroke: #fff; stroke-opacity: 0.55; stroke-dasharray: 3 3; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 2px 0 6px; color: var(--muted); font-size: 11.5px; }
+.keys i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.mini { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mini .kpi { min-width: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { padding: 4px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; }
+th:first-child, td:first-child { text-align: left; }
+tr.cur td { background: rgba(103, 232, 249, 0.08); }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: rgba(192, 132, 252, 0.1); }
+.evl { display: flex; flex-direction: column; gap: 3px; }
+.ev { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 4px 6px; border-radius: 7px; cursor: pointer; }
+.ev:hover { background: rgba(128, 150, 214, 0.08); }
+.ev.now { background: rgba(103, 232, 249, 0.09); }
+.ev .w { color: var(--dim); }
+.ev .s { font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; box-shadow: 0 0 8px currentColor; }
+.hint { color: var(--muted); padding: 14px 4px; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+.facts .k { color: var(--muted); }
+.nodehead { display: flex; align-items: center; gap: 10px; }
+.nodehead .t { font-size: 15px; font-weight: 650; }
+.nodehead .s { color: var(--muted); }
+
+/* week bar */
+footer {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px; flex-wrap: wrap;
+  border-top: 1px solid var(--line); background: rgba(6, 9, 18, 0.7);
+}
+#wk { min-width: 108px; font-weight: 650; }
+.slider { position: relative; flex: 1; min-width: 200px; padding-top: 10px; }
+.slider input { width: 100%; accent-color: #67e8f9; margin: 0; }
+#ticks { position: absolute; left: 8px; right: 8px; top: 0; height: 9px; pointer-events: none; }
+#ticks i { position: absolute; bottom: 0; width: 3px; margin-left: -1.5px; border-radius: 2px; }
+
+#tip {
+  position: fixed; z-index: 10; pointer-events: none; display: none; max-width: 340px;
+  background: #0b1020; border: 1px solid var(--line2); border-radius: 10px;
+  padding: 8px 11px; font-size: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+#tip .t { font-weight: 650; font-size: 13px; margin-bottom: 3px; }
+#tip .m { color: var(--muted); }
+#tip .badge { display: inline-block; padding: 0 6px; border-radius: 6px; font-size: 11px; margin-left: 6px; }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo"></div><div>ShockBench&nbsp;Flow <small>episode viewer</small></div></div>
+  <div class="chips" id="chips"></div>
+  <div class="kpis" id="kpis"></div>
+</header>
+<main>
+  <section id="mapwrap">
+    <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="card" id="banner"><div class="wk"></div><div class="bev"></div></div>
+    <div class="card" id="ctl"></div>
+    <div class="card" id="legend"></div>
+  </section>
+  <aside>
+    <div class="tabs" id="tabs"></div>
+    <div class="panel" id="p-cost"></div>
+    <div class="panel" id="p-mix"></div>
+    <div class="panel" id="p-node"></div>
+    <div class="panel" id="p-events"></div>
+    <div class="panel" id="p-eps"></div>
+  </aside>
+</main>
+<footer>
+  <button id="b-first" title="First week (Home)">⏮</button>
+  <button id="b-prev" title="Previous week (←)">◀</button>
+  <button id="b-play" title="Play / pause (Space)">▶ Play</button>
+  <button id="b-next" title="Next week (→)">▶</button>
+  <button id="b-last" title="Last week (End)">⏭</button>
+  <span id="wk"></span>
+  <div class="slider"><div id="ticks"></div><input type="range" id="slider" min="1" value="1"></div>
+  <button id="b-evt" title="Jump to the next week with a disruption (N)">⚑ Next event</button>
+  <select id="speed" title="Play speed">
+    <option value="1">1 wk/s</option><option value="2" selected>2 wk/s</option>
+    <option value="4">4 wk/s</option><option value="8">8 wk/s</option>
+  </select>
+</footer>
+<div id="tip"></div>
+<script>const DATA = /*__DATA__*/null;</script>
+<script>
+'use strict';
+(function () {
+if (!DATA) { document.body.innerHTML = '<div class="empty">No data: this page is written by <code>uv run sbf view &lt;agent&gt;</code>.</div>'; return; }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// constants, palette, formatting
+
+const D = DATA, N = D.net, E = N.edges, V = N.nodes;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const KIND = {
+  source:     { c: '#22d3ee', shape: 'circle',  label: 'Source', help: 'produces fuel or wafers' },
+  terminal:   { c: '#a78bfa', shape: 'tridown', label: 'Terminal', help: 'import port for fuel' },
+  grid:       { c: '#fbbf24', shape: 'hex',     label: 'Power grid', help: 'burns fuel, powers fabs' },
+  chokepoint: { c: '#94a3b8', shape: 'diamond', label: 'Strait', help: 'sea chokepoint; can close' },
+  material:   { c: '#f472b6', shape: 'pent',    label: 'Material supplier', help: 'wafers, neon' },
+  fab:        { c: '#34d399', shape: 'square',  label: 'Chip fab', help: 'turns wafers into chips' },
+  osat:       { c: '#60a5fa', shape: 'triup',   label: 'Packaging plant', help: 'packages raw chips' },
+  sink:       { c: '#fb7185', shape: 'target',  label: 'Market', help: 'final demand' },
+};
+const KIND_ORDER = ['source', 'terminal', 'grid', 'chokepoint', 'material', 'fab', 'osat', 'sink'];
+const GOOD_C = {
+  lng: '#38bdf8', crude: '#f59e0b', nucfuel: '#a3e635', wafer: '#e879f9',
+  chip_le_raw: '#2dd4bf', chip_mat_raw: '#fdba74', chip_le: '#818cf8', chip_mat: '#f43f5e',
+};
+const GOOD_NAME = {
+  lng: 'LNG', crude: 'Crude oil', nucfuel: 'Nuclear fuel', wafer: 'Wafers',
+  chip_le_raw: 'Leading-edge chips, raw', chip_mat_raw: 'Mature chips, raw', chip_le: 'Leading-edge chips', chip_mat: 'Mature chips',
+};
+const EXTRA = ['#38bdf8', '#f59e0b', '#a3e635', '#e879f9', '#2dd4bf', '#fdba74', '#818cf8', '#f43f5e'];
+const goodC = (k) => GOOD_C[N.goods[k]] || EXTRA[k % EXTRA.length];
+const goodN = (k) => GOOD_NAME[N.goods[k]] || N.goods[k];
+const MODE = { sea: { dash: '', label: 'Sea route' }, air: { dash: '6 4', label: 'Air route' },
+  pipeline: { dash: '11 3 2 3', label: 'Pipeline' }, grid: { dash: '1.5 3.5', label: 'Grid link (power → fab)' } };
+const STATE = [
+  { c: '#46557a', label: 'Open' }, { c: '#f59e0b', label: 'Reduced capacity' },
+  { c: '#ef4444', label: 'Closed / sanctioned' }, { c: '#2b3248', label: 'Not observed' },
+];
+const STRAIT = [
+  { c: '#22c55e', label: 'Fully open' }, { c: '#eab308', label: 'More than half open' },
+  { c: '#f97316', label: 'Less than half open' }, { c: '#ef4444', label: 'Closed' },
+];
+const COMP_C = { freight: '#38bdf8', war_risk: '#ef4444', tariff: '#fbbf24', holding: '#a78bfa',
+  queue_holding: '#f472b6', shortage: '#fb7185', disposal: '#94a3b8', shed: '#84cc16' };
+const compC = (c, i) => COMP_C[c] || EXTRA[i % EXTRA.length];
+const SIG = {
+  chokepoint: ['Strait', '#ef4444', 3], closure_end: ['Closure end', '#f97316', 2], war_risk: ['War risk', '#ef4444', 3],
+  prohibited: ['Sanction', '#f97316', 3], lifted: ['Sanction lifted', '#22c55e', 2], pending: ['Sanction announced', '#eab308', 2],
+  capacity: ['Capacity', '#a78bfa', 2], tariff: ['Tariff', '#fbbf24', 1], fab: ['Fab', '#34d399', 2], osat: ['Packaging', '#60a5fa', 2],
+  grid: ['Grid', '#fbbf24', 2], supply: ['Supply', '#22d3ee', 2], message: ['Announcement', '#60a5fa', 1],
+  message_update: ['Announcement update', '#60a5fa', 0], message_ended: ['Announcement ended', '#64748b', 0],
+};
+const sig = (s) => SIG[s] || [s, '#94a3b8', 1];
+
+function fq(x) {
+  if (x == null || !isFinite(x)) return '–';
+  const a = Math.abs(x);
+  if (a >= 1e12) return (x / 1e12).toFixed(a >= 1e13 ? 1 : 2) + 'T';
+  if (a >= 1e9) return (x / 1e9).toFixed(a >= 1e10 ? 0 : 1) + 'B';
+  if (a >= 1e6) return (x / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M';
+  if (a >= 1e3) return (x / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k';
+  if (a >= 10 || a === 0) return x.toFixed(0);
+  if (a >= 1) return x.toFixed(1);
+  return x.toPrecision(2);
+}
+const f$ = (x) => (x == null ? '–' : (x < 0 ? '−$' : '$') + fq(Math.abs(x)));
+const pct = (x) => (x == null || !isFinite(x) ? '–' : (x * 100).toFixed(Math.abs(x) < 0.1 ? 1 : 0) + '%');
+const sum = (a) => a.reduce((s, v) => s + (v || 0), 0);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+function straitIdx(o) { if (o == null) return -1; if (o >= 1 - 1e-9) return 0; if (o <= 1e-9) return 3; return o >= 0.5 ? 1 : 2; }
+
+const edgeById = new Map(E.map((e, i) => [e.id, i]));
+const edgeName = (i) => `${V[E[i].tail].id} → ${V[E[i].head].id}`;
+const goodIdx = new Map(N.goods.map((g, k) => [g, k]));
+const straitCol = new Map(N.straits.map((n, j) => [n, j]));
+const sinkIdx = N.sinks.map(([n, k], j) => ({ n, k, j }));
+const demandIdx = N.demands.map(([n, k], j) => ({ n, k, j }));
+const gridCol = new Map(N.grids.map((n, j) => [n, j]));
+const stockByNode = V.map(() => []);
+N.stock_slots.forEach(([n, k], j) => stockByNode[n].push({ k, j }));
+const slotsByEdge = E.map(() => []);
+N.slots.forEach((s, j) => {
+  const es = s.lane != null ? N.lanes[s.lane].edges : [s.edge];
+  es.forEach((e) => slotsByEdge[e].push(j));
+});
+const edgesByNode = V.map(() => []);
+E.forEach((e, i) => { edgesByNode[e.tail].push(i); edgesByNode[e.head].push(i); });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// state
+
+const S = {
+  ep: 0, t: 1, timer: null, sel: null, tab: 'cost',
+  show: { cap: E.length <= 40, flow: true, transit: true, names: true },
+};
+const EP = () => D.episodes[S.ep];
+const T = () => EP().T;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// geometry: columns by node kind (the package's positions), quadratic edges bent apart
+
+const R = V.length > 60 ? 7 : V.length > 20 ? 9 : 12;
+const FLOW_W = E.length > 200 ? 3.5 : E.length > 40 ? 4.5 : 6.5;  // the widest shipment line, thinner on big networks
+const SX = V.length > 60 ? 230 : 250, SY = V.length > 60 ? 44 : V.length > 20 ? 56 : 105;
+const P = V.map((n) => [n.x * SX, -n.y * SY]);
+const rank = [], seenPair = {};
+E.forEach((e, i) => {
+  const key = Math.min(e.tail, e.head) + '-' + Math.max(e.tail, e.head) + (e.tail < e.head ? '' : 'r');
+  rank[i] = seenPair[key] || 0;
+  seenPair[key] = rank[i] + 1;
+});
+const toward = (a, b, d) => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [a[0] + (b[0] - a[0]) / l * d, a[1] + (b[1] - a[1]) / l * d]; };
+const G = E.map((e, i) => {
+  const p0 = P[e.tail], p2 = P[e.head];
+  const dx = p2[0] - p0[0], dy = p2[1] - p0[1], L = Math.hypot(dx, dy) || 1;
+  const off = 0.1 * L + 16 + 18 * rank[i];
+  const c = [(p0[0] + p2[0]) / 2 - dy / L * off, (p0[1] + p2[1]) / 2 + dx / L * off];
+  const a = toward(p0, c, R + 2), b = toward(p2, c, R + 4);
+  const r1 = (v) => v.toFixed(1);
+  return { a, b, c, d: `M${r1(a[0])},${r1(a[1])} Q${r1(c[0])},${r1(c[1])} ${r1(b[0])},${r1(b[1])}`, nx: -dy / L, ny: dx / L };
+});
+function qpt(g, f) {
+  const u = 1 - f;
+  return [u * u * g.a[0] + 2 * u * f * g.c[0] + f * f * g.b[0], u * u * g.a[1] + 2 * u * f * g.c[1] + f * f * g.b[1]];
+}
+
+function shapePath(kind, r) {
+  const poly = (n, rot, k = 1) => {
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const a = rot + (i * 2 * Math.PI) / n;
+      d += (i ? 'L' : 'M') + (Math.cos(a) * r * k).toFixed(2) + ',' + (Math.sin(a) * r * k).toFixed(2);
+    }
+    return d + 'Z';
+  };
+  const circ = (rr) => `M${-rr},0a${rr},${rr} 0 1,0 ${2 * rr},0a${rr},${rr} 0 1,0 ${-2 * rr},0Z`;
+  switch (KIND[kind] ? KIND[kind].shape : 'circle') {
+    case 'square': return `M${-r * 0.88},${-r * 0.88}h${r * 1.76}v${r * 1.76}h${-r * 1.76}Z`;
+    case 'diamond': return poly(4, -Math.PI / 2, 1.3);
+    case 'triup': return poly(3, -Math.PI / 2, 1.3);
+    case 'tridown': return poly(3, Math.PI / 2, 1.3);
+    case 'hex': return poly(6, 0, 1.08);
+    case 'pent': return poly(5, -Math.PI / 2, 1.12);
+    case 'target': return circ(r * 1.12) + circ(r * 0.78) + circ(r * 0.42);
+    default: return circ(r);
+  }
+}
+function swatch(kind, colour, size = 16) {
+  const r = size * 0.33;
+  return `<svg width="${size}" height="${size}" viewBox="${-size / 2} ${-size / 2} ${size} ${size}"><path d="${shapePath(kind, r)}" fill="${colour}" fill-rule="evenodd" stroke="#070a14" stroke-width="1"/></svg>`;
+}
+function lineSwatch(colour, dash, width = 2, w = 30) {
+  return `<svg width="${w}" height="10"><line x1="1" y1="5" x2="${w - 1}" y2="5" stroke="${colour}" stroke-width="${width}" stroke-dasharray="${dash}" stroke-linecap="round"/></svg>`;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// the map, built once
+
+const svg = $('#map');
+const EL = { e: [], n: [], dots: [], dotsG: null };
+let curState = [];
+function buildMap() {
+  let s = '<defs>';
+  const halo = (id, c) => `<radialGradient id="${id}"><stop offset="0" stop-color="${c}" stop-opacity=".6"/><stop offset=".4" stop-color="${c}" stop-opacity=".2"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  for (const k of KIND_ORDER) s += halo('h-' + k, KIND[k].c);
+  STRAIT.forEach((st, j) => { s += halo('h-s' + j, st.c); });
+  STATE.forEach((st, j) => {
+    s += `<marker id="m${j}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1L9,5L0,9z" fill="${st.c}"/></marker>`;
+  });
+  s += '</defs><g id="vp"><g id="edges">';
+  E.forEach((e, i) => {
+    const g = G[i], m = qpt(g, 0.5);
+    s += `<g class="e${e.u0 != null ? ' cap' : ''}" data-e="${i}"><path class="eg" d="${g.d}"/>` +
+      `<path class="eb" d="${g.d}" stroke="${STATE[0].c}" stroke-dasharray="${(MODE[e.mode] || MODE.sea).dash}" marker-end="url(#m0)"/>` +
+      `<path class="ef2" d="${g.d}"/><path class="ef" d="${g.d}"/>` +
+      `<text class="ecap" x="${m[0].toFixed(1)}" y="${(m[1] + 3).toFixed(1)}"></text><path class="eh" d="${g.d}"/></g>`;
+  });
+  s += '</g><g id="dots"></g><g id="nodes">';
+  V.forEach((n, i) => {
+    const k = KIND[n.type] ? n.type : 'source';
+    s += `<g class="n" data-n="${i}" transform="translate(${P[i][0].toFixed(1)},${P[i][1].toFixed(1)})">` +
+      `<circle class="halo" r="${(R * 3.2).toFixed(1)}" fill="url(#h-${k})"/>` +
+      `<path class="ns" d="${shapePath(k, R)}" fill="${KIND[k].c}" fill-rule="evenodd"/>` +
+      `<text class="nl" y="${R + 13}">${esc(n.id)}</text><text class="nb" y="${-R - 7}"></text></g>`;
+  });
+  s += '</g></g>';
+  svg.innerHTML = s;
+  EL.e = [...svg.querySelectorAll('.e')].map((g) => ({
+    g, base: g.querySelector('.eb'), f: g.querySelector('.ef'), f2: g.querySelector('.ef2'), cap: g.querySelector('.ecap'),
+  }));
+  EL.n = [...svg.querySelectorAll('.n')].map((g) => ({ g, halo: g.querySelector('.halo'), shape: g.querySelector('.ns'), badge: g.querySelector('.nb') }));
+  EL.dotsG = svg.querySelector('#dots');
+  curState = E.map(() => 0);
+}
+
+// pan and zoom through the viewBox only
+let VB = null;
+function fit() {
+  // fit the network into the part of the map the cards leave free (controls left, banner top, legend right)
+  const xs = P.map((p) => p[0]), ys = P.map((p) => p[1]);
+  const x0 = Math.min(...xs) - 50, x1 = Math.max(...xs) + 50, y0 = Math.min(...ys) - 40, y1 = Math.max(...ys) + 40;
+  const r = svg.getBoundingClientRect(), W = r.width || 1000, H = r.height || 700;
+  const lg = $('#legend'), ct = $('#ctl');
+  const left = W > 700 ? ct.offsetWidth + 24 : 8, right = W > 700 && !lg.classList.contains('closed') ? lg.offsetWidth + 24 : 8;
+  const top = 70, bottom = 10, uw = Math.max(W - left - right, 200), uh = Math.max(H - top - bottom, 150);
+  const sc = Math.max((x1 - x0) / uw, (y1 - y0) / uh);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  VB = [cx - (left + uw / 2) * sc, cy - (top + uh / 2) * sc, W * sc, H * sc];
+  applyVB();
+}
+const applyVB = () => svg.setAttribute('viewBox', VB.map((v) => v.toFixed(1)).join(' '));
+function svgPt(ev) {
+  const r = svg.getBoundingClientRect();
+  const sc = Math.max(VB[2] / r.width, VB[3] / r.height);
+  const ox = VB[0] - (r.width * sc - VB[2]) / 2, oy = VB[1] - (r.height * sc - VB[3]) / 2;
+  return [ox + (ev.clientX - r.left) * sc, oy + (ev.clientY - r.top) * sc, sc];
+}
+svg.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  const [x, y] = svgPt(ev), k = ev.deltaY > 0 ? 1.15 : 1 / 1.15;
+  VB = [x - (x - VB[0]) * k, y - (y - VB[1]) * k, VB[2] * k, VB[3] * k];
+  applyVB();
+}, { passive: false });
+let drag = null;
+svg.addEventListener('pointerdown', (ev) => {
+  if (ev.button !== 0) return;
+  drag = { x: ev.clientX, y: ev.clientY, vb: VB.slice(), moved: false, sc: svgPt(ev)[2] };
+});
+window.addEventListener('pointermove', (ev) => {
+  if (!drag) return;
+  const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+  if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+  if (!drag.moved) { drag.moved = true; svg.classList.add('drag'); hideTip(); }
+  VB = [drag.vb[0] - dx * drag.sc, drag.vb[1] - dy * drag.sc, drag.vb[2], drag.vb[3]];
+  applyVB();
+});
+window.addEventListener('pointerup', () => {
+  if (drag && drag.moved) { svg.classList.remove('drag'); setTimeout(() => (drag = null), 0); } else drag = null;
+});
+svg.addEventListener('dblclick', fit);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// per-episode precomputation
+
+let NORM = [], QMAX = 1, EVW = [];
+function prepare() {
+  const w = EP().weeks;
+  const mx = E.map(() => 0);
+  w.flows.forEach((rows) => {
+    const tot = new Map();
+    rows.forEach(([e, , q]) => tot.set(e, (tot.get(e) || 0) + q));
+    tot.forEach((q, e) => { mx[e] = Math.max(mx[e], q); });
+  });
+  NORM = E.map((e, i) => (e.u0 ? e.u0 : mx[i] || 1));
+  QMAX = 1;
+  w.transit.forEach((rows) => rows.forEach((r) => { QMAX = Math.max(QMAX, r[4]); }));
+  EVW = Array.from({ length: T() + 2 }, () => []);
+  EP().events.forEach((e, j) => { if (e.week >= 1 && e.week <= T()) EVW[e.week].push(j); });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// render one week of the map
+
+let activeFlow = new Set();
+function renderMap() {
+  const ep = EP(), w = ep.weeks, i = S.t - 1;
+  const st = w.state[i], u = w.u[i];
+  for (let e = 0; e < E.length; e++) {
+    const s = st.charCodeAt(e) - 48, el = EL.e[e];
+    if (s !== curState[e]) {
+      curState[e] = s;
+      el.base.setAttribute('stroke', STATE[s].c);
+      el.base.setAttribute('marker-end', `url(#m${s})`);
+      el.g.classList.toggle('closed', s === 2);
+      el.g.classList.toggle('reduced', s === 1);
+    }
+    if (S.show.cap && E[e].u0 != null) {
+      el.cap.textContent = s === 1 ? `${fq(u[e])}/${fq(E[e].u0)}` : fq(u[e]);
+    }
+  }
+  svg.classList.toggle('showcap', S.show.cap);
+  svg.classList.toggle('hidenames', !S.show.names);
+
+  // the agent's shipments this week: width by share of capacity, colour of the main good
+  const agg = new Map();
+  if (S.show.flow) for (const [e, k, q] of w.flows[i]) {
+    const a = agg.get(e) || { q: 0, k: k, bq: 0 };
+    a.q += q;
+    if (q > a.bq) { a.bq = q; a.k = k; }
+    agg.set(e, a);
+  }
+  for (const e of activeFlow) if (!agg.has(e)) EL.e[e].g.classList.remove('flow');
+  activeFlow = new Set(agg.keys());
+  for (const [e, a] of agg) {
+    const el = EL.e[e], wd = 1.4 + FLOW_W * Math.min(1.3, Math.sqrt(a.q / NORM[e])), c = goodC(a.k);
+    el.f.setAttribute('stroke', c); el.f.setAttribute('stroke-width', wd.toFixed(2));
+    el.f2.setAttribute('stroke', c); el.f2.setAttribute('stroke-width', (wd + FLOW_W).toFixed(2));
+    el.g.classList.add('flow');
+  }
+
+  // goods in transit: a dot along the edge by the share of its lead time already travelled
+  const rows = S.show.transit ? w.transit[i] : [];
+  while (EL.dots.length < rows.length) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.dataset.d = EL.dots.length;
+    EL.dotsG.appendChild(c);
+    EL.dots.push(c);
+  }
+  rows.forEach(([e, k, , arr, q], j) => {
+    const g = G[e], rem = arr - S.t, tau = Math.max(E[e].tau0 || 1, 1);
+    const f = clamp(1 - rem / tau, 0.1, 0.9), p = qpt(g, f), jit = ((k % 3) - 1) * 3.5;
+    const d = EL.dots[j], c = goodC(k);
+    d.setAttribute('cx', (p[0] + g.nx * jit).toFixed(1));
+    d.setAttribute('cy', (p[1] + g.ny * jit).toFixed(1));
+    d.setAttribute('r', (1.8 + 4.5 * Math.sqrt(q / QMAX)).toFixed(2));
+    d.setAttribute('fill', c); d.setAttribute('stroke', c);
+    d.style.display = '';
+  });
+  for (let j = rows.length; j < EL.dots.length; j++) EL.dots[j].style.display = 'none';
+
+  // nodes: straits by open fraction, badges for queues, unmet demand and power shed
+  const badges = V.map(() => null);
+  N.straits.forEach((n, j) => {
+    const o = w.open[i][j], idx = straitIdx(o), el = EL.n[n];
+    el.shape.setAttribute('fill', idx < 0 ? STATE[3].c : STRAIT[idx].c);
+    el.halo.setAttribute('fill', `url(#h-${idx < 0 ? 'chokepoint' : 's' + idx})`);
+    const q = w.queue[i][j];
+    if (q > 0) badges[n] = [`queue ${fq(q)}`, '#fdba74'];
+    else if (idx > 0) badges[n] = [pct(o), STRAIT[idx].c];
+  });
+  sinkIdx.forEach(({ n, j }) => {
+    const dm = w.demand[i][j], sv = w.served[i][j];
+    if (dm > 0) { const r = sv / dm; badges[n] = [`${pct(r)} served`, r >= 0.995 ? '#4ade80' : r >= 0.8 ? '#facc15' : '#f87171']; }
+  });
+  N.grids.forEach((n, j) => { const sh = w.shed[i][j]; if (sh > 0) badges[n] = [`shed ${fq(sh)}`, '#f87171']; });
+  badges.forEach((b, n) => {
+    const el = EL.n[n].badge;
+    el.textContent = b ? b[0] : '';
+    if (b) el.setAttribute('fill', b[1]);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// tooltips and hover focus
+
+const tip = $('#tip');
+function showTip(html, ev) {
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + 16, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 16;
+  if (y + h > innerHeight - 8) y = innerHeight - h - 8;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+const badge = (text, c) => `<span class="badge" style="background:${c}22;color:${c};border:1px solid ${c}55">${esc(text)}</span>`;
+
+function edgeTip(e) {
+  const ed = E[e], w = EP().weeks, i = S.t - 1, s = w.state[i].charCodeAt(e) - 48;
+  const lines = [];
+  lines.push(`<div class="t">${esc(ed.id)} · ${esc((MODE[ed.mode] || { label: ed.mode }).label)}${badge(STATE[s].label, STATE[s].c)}</div>`);
+  lines.push(`<div>${esc(edgeName(e))}</div>`);
+  lines.push(`<div class="m">carries ${ed.K.map((k) => `<span style="color:${goodC(k)}">${esc(goodN(k))}</span>`).join(', ') || '–'}</div>`);
+  if (ed.u0 != null) {
+    const u = w.u[i][e];
+    lines.push(`<div>capacity this week <b>${fq(u)}</b> of nominal ${fq(ed.u0)}${u != null && ed.u0 ? ` (${pct(u / ed.u0)})` : ''}</div>`);
+  }
+  lines.push(`<div class="m">lead time ${ed.tau0} wk · freight $${fq(ed.c0)} per unit${ed.alt ? ` · alternative of ${esc(ed.alt)}` : ''}</div>`);
+  const sl = slotsByEdge[e].filter((j) => w.requested[i][j] > 0 || w.executed[i][j] > 0);
+  if (sl.length) {
+    lines.push('<div style="margin-top:4px"><b>agent this week</b></div>');
+    sl.forEach((j) => {
+      const sv = N.slots[j], req = w.requested[i][j], exe = w.executed[i][j];
+      const via = sv.lane != null ? ` <span class="m">via lane ${esc(N.lanes[sv.lane].id)}</span>` : '';
+      const clip = req > exe * 1.001 + 1e-9 ? ` <span style="color:#fdba74">(asked ${fq(req)}, clipped)</span>` : '';
+      lines.push(`<div><span class="dot" style="color:${goodC(sv.k)};background:${goodC(sv.k)}"></span>${esc(goodN(sv.k))}: sent <b>${fq(exe)}</b>${clip}${via}</div>`);
+    });
+  } else if (slotsByEdge[e].length) lines.push('<div class="m" style="margin-top:4px">agent sent nothing here this week</div>');
+  else lines.push('<div class="m" style="margin-top:4px">not a decision route (follows from the network)</div>');
+  const tr = w.transit[i].filter((r) => r[0] === e);
+  if (tr.length) {
+    lines.push('<div style="margin-top:4px"><b>in transit on it</b></div>');
+    tr.slice(0, 6).forEach(([, k, , arr, q]) => lines.push(`<div><span class="dot" style="color:${goodC(k)};background:${goodC(k)}"></span>${esc(goodN(k))} ${fq(q)} · arrives wk ${arr}</div>`));
+    if (tr.length > 6) lines.push(`<div class="m">… ${tr.length - 6} more</div>`);
+  }
+  return lines.join('');
+}
+
+function nodeTip(n) {
+  const v = V[n], w = EP().weeks, i = S.t - 1, kd = KIND[v.type] || { label: v.type, c: '#94a3b8' };
+  const lines = [`<div class="t" style="color:${kd.c}">${esc(v.id)}</div><div class="m">${esc(kd.label)} · region ${esc(v.region)}</div>`];
+  if (straitCol.has(n)) {
+    const j = straitCol.get(n), o = w.open[i][j], idx = straitIdx(o);
+    lines.push(`<div>open <b>${pct(o)}</b>${idx >= 0 ? badge(STRAIT[idx].label, STRAIT[idx].c) : ''}</div>`);
+    if (w.queue[i][j] > 0) lines.push(`<div>queued cargo <b>${fq(w.queue[i][j])}</b> units</div>`);
+  }
+  const st = stockByNode[n];
+  if (st.length) {
+    lines.push('<div style="margin-top:4px"><b>stock after this week</b></div>');
+    st.forEach(({ k, j }) => lines.push(`<div><span class="dot" style="color:${goodC(k)};background:${goodC(k)}"></span>${esc(goodN(k))}: ${fq(w.stock[i][j])}</div>`));
+  }
+  sinkIdx.filter((s) => s.n === n).forEach(({ k, j }) => {
+    lines.push(`<div style="margin-top:4px"><b>${esc(goodN(k))} demand</b> ${fq(w.demand[i][j])} · served ${fq(w.served[i][j])} · lost ${fq(w.lost[i][j])}</div>`);
+  });
+  demandIdx.filter((s) => s.n === n).forEach(({ j }) => { if (w.backlog[i][j] > 0) lines.push(`<div>backlog <b>${fq(w.backlog[i][j])}</b></div>`); });
+  if (gridCol.has(n) && w.shed[i][gridCol.get(n)] > 0) lines.push(`<div style="color:#f87171">power shed ${fq(w.shed[i][gridCol.get(n)])}</div>`);
+  lines.push('<div class="m" style="margin-top:4px">click to pin it in the Node tab</div>');
+  return lines.join('');
+}
+
+function focusNode(n) {
+  svg.classList.add('focus');
+  EL.n[n].g.classList.add('hl');
+  edgesByNode[n].forEach((e) => {
+    EL.e[e].g.classList.add('hl');
+    EL.n[E[e].tail].g.classList.add('hl'); EL.n[E[e].head].g.classList.add('hl');
+  });
+}
+function focusEdge(e) {
+  svg.classList.add('focus');
+  EL.e[e].g.classList.add('hl');
+  EL.n[E[e].tail].g.classList.add('hl'); EL.n[E[e].head].g.classList.add('hl');
+}
+function unfocus() {
+  svg.classList.remove('focus');
+  svg.querySelectorAll('.hl').forEach((x) => x.classList.remove('hl'));
+}
+let hovered = null;
+svg.addEventListener('pointerover', (ev) => {
+  if (drag && drag.moved) return;
+  const eg = ev.target.closest('[data-e]'), ng = ev.target.closest('[data-n]'), dot = ev.target.dataset && ev.target.dataset.d;
+  const key = ng ? 'n' + ng.dataset.n : eg ? 'e' + eg.dataset.e : dot != null ? 'd' + dot : null;
+  if (key === hovered) return;
+  unfocus(); hovered = key;
+  if (ng) { focusNode(+ng.dataset.n); showTip(nodeTip(+ng.dataset.n), ev); }
+  else if (eg) { focusEdge(+eg.dataset.e); showTip(edgeTip(+eg.dataset.e), ev); }
+  else if (dot != null) {
+    const r = EP().weeks.transit[S.t - 1][+dot];
+    if (r) showTip(`<div class="t" style="color:${goodC(r[1])}">${esc(goodN(r[1]))} · ${fq(r[4])} units</div><div>on ${esc(E[r[0]].id)} (${esc(edgeName(r[0]))})</div><div class="m">arrives week ${r[3]}${r[2] >= 0 ? ` · lane ${esc(N.lanes[r[2]].id)}` : ''}</div>`, ev);
+  } else hideTip();
+});
+svg.addEventListener('pointermove', (ev) => { if (hovered && tip.style.display === 'block') showTip(tip.innerHTML, ev); });
+svg.addEventListener('pointerleave', () => { unfocus(); hovered = null; hideTip(); });
+svg.addEventListener('click', (ev) => {
+  if (drag && drag.moved) return;
+  const ng = ev.target.closest('[data-n]');
+  if (ng) selectNode(+ng.dataset.n);
+});
+
+function selectNode(n) {
+  if (S.sel != null) EL.n[S.sel].g.classList.remove('sel');
+  S.sel = n;
+  EL.n[n].g.classList.add('sel');
+  setTab('node');
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// small charts: lines, bars and stacks over the weeks, with a cursor on the selected week; click jumps to a week
+
+function chart(host, opt) {
+  const W = Math.max(host.clientWidth || 360, 240), H = opt.height || 140, pl = 48, pr = 8, pt = 8, pb = 20;
+  const n = opt.T, pw = W - pl - pr, ph = H - pt - pb;
+  const x = (t) => pl + ((t - 0.5) / n) * pw;
+  let lo = Infinity, hi = -Infinity;
+  const see = (v) => { if (v != null && isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } };
+  (opt.lines || []).forEach((s) => s.values.forEach(see));
+  if (opt.bars) opt.bars.values.forEach(see);
+  if (opt.stack) for (let t = 0; t < n; t++) { see(sum(opt.stack.map((l) => Math.max(0, l.values[t] || 0)))); }
+  if (opt.zero !== false) see(0);
+  if (opt.min != null) see(opt.min);
+  if (opt.max != null) see(opt.max);
+  if (!isFinite(lo)) { lo = 0; hi = 1; }
+  if (hi === lo) hi = lo + 1;
+  const y = (v) => pt + ((hi - v) / (hi - lo)) * ph;
+  const fmt = opt.fmt || fq;
+  let s = `<svg width="${W}" height="${H}">`;
+  [lo, (lo + hi) / 2, hi].forEach((v) => {
+    s += `<line class="gl" x1="${pl}" x2="${W - pr}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="ax" x="${pl - 6}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end">${fmt(v)}</text>`;
+  });
+  const step = Math.max(1, Math.ceil(n / 7 / 2) * 2);
+  for (let t = 1; t <= n; t += step) s += `<text class="ax" x="${x(t).toFixed(1)}" y="${H - 5}" text-anchor="middle">${t}</text>`;
+  const bw = Math.max(1, (pw / n) * 0.72);
+  if (opt.stack) for (let t = 0; t < n; t++) {
+    let base = 0;
+    opt.stack.forEach((l) => {
+      const v = Math.max(0, l.values[t] || 0);
+      if (v > 0) s += `<rect x="${(x(t + 1) - bw / 2).toFixed(1)}" y="${y(base + v).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.5, y(base) - y(base + v)).toFixed(1)}" fill="${l.color}"/>`;
+      base += v;
+    });
+  }
+  if (opt.bars) opt.bars.values.forEach((v, t) => {
+    if (v == null || !v) return;
+    const y0 = y(0), y1 = y(v);
+    s += `<rect x="${(x(t + 1) - bw / 2).toFixed(1)}" y="${Math.min(y0, y1).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.5, Math.abs(y1 - y0)).toFixed(1)}" fill="${v < 0 ? opt.bars.neg : opt.bars.pos}" rx="1"/>`;
+  });
+  (opt.lines || []).forEach((l) => {
+    let d = '', pen = false;
+    l.values.forEach((v, t) => {
+      if (v == null || !isFinite(v)) { pen = false; return; }
+      d += (pen ? 'L' : 'M') + x(t + 1).toFixed(1) + ',' + y(v).toFixed(1);
+      pen = true;
+    });
+    if (l.glow) s += `<path d="${d}" fill="none" stroke="${l.color}" stroke-width="6" stroke-opacity=".15" stroke-linejoin="round"/>`;
+    s += `<path d="${d}" fill="none" stroke="${l.color}" stroke-width="${l.width || 1.8}" stroke-dasharray="${l.dash || ''}" stroke-linejoin="round"/>`;
+  });
+  s += `<line class="cur" y1="${pt}" y2="${H - pb}"/></svg>`;
+  host.innerHTML = s;
+  host.classList.add('chart');
+  const cur = host.querySelector('.cur');
+  host.onclick = (ev) => {
+    const r = host.getBoundingClientRect();
+    setWeek(clamp(Math.floor(((ev.clientX - r.left - pl) / pw) * n) + 1, 1, n));
+  };
+  const c = { set(t) { const xx = x(t).toFixed(1); cur.setAttribute('x1', xx); cur.setAttribute('x2', xx); } };
+  CHARTS.push(c);
+  return c;
+}
+let CHARTS = [];
+const keys = (items) => `<div class="keys">${items.map(([c, l, dash]) => (dash ? `<span>${lineSwatch(c, dash, 2, 18)} ${esc(l)}</span>` : `<span><i style="background:${c}"></i>${esc(l)}</span>`)).join('')}</div>`;
+const cumsum = (a) => { let s = 0; return a.map((v) => (s += v || 0)); };
+
+// ---------------------------------------------------------------------------------------------------------------------
+// side panels
+
+const TABS = [['cost', 'Cost'], ['mix', 'Breakdown'], ['node', 'Node'], ['events', 'Events'], ['eps', 'Episodes']];
+function setTab(t) {
+  S.tab = t;
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+  document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('on', p.id === 'p-' + t));
+  buildSide();
+}
+
+function buildSide() {
+  CHARTS = [];
+  ({ cost: buildCost, mix: buildMix, node: buildNodePanel, events: buildEvents, eps: buildEps })[S.tab]();
+  updateSide();
+}
+
+function buildCost() {
+  const ep = EP(), w = ep.weeks, p = $('#p-cost'), nv = ep.naive;
+  p.innerHTML = `<h3>This week</h3><div class="mini" id="cost-mini"></div>
+    <h3>Cumulative cost</h3>${keys([['#22d3ee', 'agent'], ...(nv ? [['#94a3b8', 'naive rule', '5 4']] : [])])}<div id="c-cum"></div>
+    ${nv ? `<h3>Weekly cost minus naive's</h3>${keys([['#22c55e', 'agent cheaper'], ['#ef4444', 'agent dearer']])}<div id="c-diff"></div>` : ''}
+    <h3>Weekly cost</h3>${keys([['#c084fc', 'agent'], ...(nv ? [['#94a3b8', 'naive rule', '5 4']] : [])])}<div id="c-week"></div>
+    <p class="hint">Week ${ep.T}'s cost is net of the value of what is left at the end (salvage ${f$(ep.salvage)}). Click a chart to jump to a week.</p>`;
+  chart($('#c-cum'), { T: ep.T, fmt: f$, lines: [...(nv ? [{ values: cumsum(nv.cost), color: '#94a3b8', dash: '5 4' }] : []), { values: cumsum(w.cost), color: '#22d3ee', glow: true, width: 2.2 }] });
+  if (nv) chart($('#c-diff'), { T: ep.T, fmt: f$, bars: { values: w.cost.map((c, t) => c - nv.cost[t]), pos: '#ef4444', neg: '#22c55e' } });
+  chart($('#c-week'), { T: ep.T, fmt: f$, lines: [...(nv ? [{ values: nv.cost, color: '#94a3b8', dash: '5 4', width: 1.4 }] : []), { values: w.cost, color: '#c084fc', glow: true }] });
+}
+
+function buildMix() {
+  const ep = EP(), w = ep.weeks, p = $('#p-mix'), cc = N.cost_components;
+  p.innerHTML = `<h3>Agent's weekly cost by component</h3>${keys(cc.map((c, j) => [compC(c, j), c.replace('_', ' ')]))}<div id="c-mix"></div>
+    <h3>Where the money went</h3><div id="mix-table"></div>
+    <p class="hint">Δ is the agent's total minus the naive rule's: red where the agent spends more. That is where to look for improvements.</p>`;
+  chart($('#c-mix'), { T: ep.T, height: 170, fmt: f$, stack: cc.map((c, j) => ({ color: compC(c, j), values: w.costs.map((r) => r[j]) })) });
+}
+
+function buildNodePanel() {
+  const p = $('#p-node');
+  if (S.tab !== 'node') return;
+  if (S.sel == null) { p.innerHTML = '<div class="hint">Click a node on the map to see its stock, demand and routes here.</div>'; return; }
+  CHARTS = [];
+  const n = S.sel, v = V[n], kd = KIND[v.type] || { c: '#94a3b8', label: v.type }, ep = EP(), w = ep.weeks;
+  let h = `<div class="nodehead">${swatch(v.type, kd.c, 26)}<div><div class="t">${esc(v.id)}</div><div class="s">${esc(kd.label)} · region ${esc(v.region)}</div></div></div>
+    <h3>Week <span class="wkn"></span></h3><div class="facts" id="node-facts"></div>`;
+  const st = stockByNode[n];
+  if (straitCol.has(n)) h += `<h3>Open fraction</h3><div id="c-open"></div><h3>Cargo queued</h3><div id="c-queue"></div>`;
+  if (st.length) h += `<h3>Stock after each week</h3>${keys(st.map(({ k }) => [goodC(k), goodN(k)]))}<div id="c-stock"></div>`;
+  const sinks = sinkIdx.filter((s) => s.n === n);
+  if (sinks.length) h += `<h3>Demand and served</h3>${keys([['#fb7185', 'demand'], ['#22c55e', 'served'], ['#ef4444', 'lost']])}<div id="c-sink"></div>`;
+  h += `<h3>Routes this week</h3><div id="node-edges"></div>`;
+  p.innerHTML = h;
+  if (straitCol.has(n)) {
+    const j = straitCol.get(n);
+    chart($('#c-open'), { T: ep.T, height: 100, fmt: pct, min: 0, max: 1, lines: [{ values: w.open.map((r) => r[j]), color: '#22c55e', glow: true }] });
+    chart($('#c-queue'), { T: ep.T, height: 100, bars: { values: w.queue.map((r) => r[j]), pos: '#fdba74', neg: '#fdba74' } });
+  }
+  if (st.length) chart($('#c-stock'), { T: ep.T, lines: st.map(({ k, j }) => ({ values: w.stock.map((r) => r[j]), color: goodC(k), glow: true })) });
+  if (sinks.length) chart($('#c-sink'), { T: ep.T, lines: sinks.flatMap(({ j }) => [
+    { values: w.demand.map((r) => r[j]), color: '#fb7185', dash: '4 3' },
+    { values: w.served.map((r) => r[j]), color: '#22c55e', glow: true },
+    { values: w.lost.map((r) => r[j]), color: '#ef4444' }]) });
+}
+
+function buildEvents() {
+  const ep = EP(), w = ep.weeks, p = $('#p-events');
+  const types = [...new Set(ep.events.map((e) => e.signal))];
+  const top = N.warning_names.map((nm, j) => [j, Math.max(...w.warning.map((r) => (r[j] == null ? -Infinity : r[j])))])
+    .filter(([, m]) => isFinite(m)).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  p.innerHTML = `<h3>This week</h3><div class="evl" id="ev-now"></div>
+    ${top.length ? `<h3>Early-warning scores (top ${top.length})</h3>${keys(top.map(([j], q) => [EXTRA[q], N.warning_names[j]]))}<div id="c-warn"></div>` : ''}
+    <h3>All events <select id="ev-filter" style="margin-left:8px;font-size:11px;padding:1px 4px"><option value="">all kinds</option>${types.map((t) => `<option value="${esc(t)}">${esc(sig(t)[0])}</option>`).join('')}</select></h3>
+    <div class="evl" id="ev-all"></div>`;
+  if (top.length) chart($('#c-warn'), { T: ep.T, height: 120, zero: false, fmt: (v) => v.toFixed(1), lines: top.map(([j], q) => ({ values: w.warning.map((r) => r[j]), color: EXTRA[q] })) });
+  const fill = () => {
+    const f = $('#ev-filter').value;
+    $('#ev-all').innerHTML = ep.events.map((e, j) => ((!f || e.signal === f) ? evRow(e, j) : '')).join('') || '<div class="hint">no events</div>';
+    markEvents();
+  };
+  $('#ev-filter').onchange = fill;
+  fill();
+  $('#ev-all').onclick = (ev) => { const r = ev.target.closest('.ev'); if (r) setWeek(+r.dataset.w); };
+}
+function evText(e) {
+  let subj = esc(e.subject || '');
+  subj = subj.replace(/\b([A-Za-z][\w.\-]*\d)\b/g, (m) => (edgeById.has(m) ? `${m} <span class="m">(${esc(edgeName(edgeById.get(m)))})</span>` : m));
+  const asPct = e.signal === 'tariff' || e.signal === 'chokepoint' || e.signal === 'war_risk';
+  const val = (v) => (v == null ? null : typeof v === 'number' ? (asPct ? pct(v) : fq(v)) : esc(v));
+  let ch = '';
+  if (!['prohibited', 'lifted', 'pending'].includes(e.signal) && (e.before != null || e.after != null)) {
+    const pre = e.signal === 'chokepoint' ? ' open' : '';
+    ch = e.before == null ? `${pre} <b>${val(e.after)}</b>` : `${pre} ${val(e.before)} → <b>${val(e.after)}</b>`;
+  }
+  return `${subj}${ch}${e.note ? ` <span class="m">· ${esc(e.note)}</span>` : ''}`;
+}
+function evRow(e, j) {
+  const [l, c] = sig(e.signal);
+  return `<div class="ev" data-w="${e.week}" data-j="${j}"><span class="w">wk ${e.week}</span><span><span class="dot" style="color:${c};background:${c}"></span><span class="s" style="color:${c}">${esc(l)}</span> ${evText(e)}</span></div>`;
+}
+function markEvents() {
+  document.querySelectorAll('#ev-all .ev').forEach((r) => r.classList.toggle('now', +r.dataset.w === S.t));
+}
+
+function buildEps() {
+  const p = $('#p-eps'), ev = D.eval;
+  const recorded = new Map(D.episodes.map((e, j) => [e.episode, j]));
+  if (!ev) {
+    p.innerHTML = `<div class="hint">No evaluation in this page (it was made with <code>--episode</code>). Run <code>uv run sbf view ${esc(D.agent)} --task=${esc(D.task)}</code> to evaluate and pick episodes.</div>` + epList(recorded);
+    return;
+  }
+  const skill = (r) => { const d = r.J_naive_cents - r.J_clairvoyant_cents; return d > 0 ? (r.J_naive_cents - r.J_policy_cents) / d : null; };
+  const rows = ev.per_episode.map((r) => {
+    const s = skill(r), j = recorded.get(r.episode);
+    return `<tr class="${j != null ? 'click' : ''}${j === S.ep ? ' cur' : ''}" ${j != null ? `data-j="${j}"` : ''}><td>${r.episode}${j != null ? ' ●' : ''}</td><td>${r.stratum ?? '–'}</td>
+      <td class="${s == null ? '' : s >= 0 ? 'pos' : 'neg'}">${s == null ? '–' : s.toFixed(2)}</td><td>${f$(r.J_policy_cents / 100)}</td><td>${f$(r.J_naive_cents / 100)}</td><td>${f$(r.J_clairvoyant_cents / 100)}</td></tr>`;
+  }).join('');
+  const iv = ev.interval || [];
+  p.innerHTML = `<h3>Evaluation${ev.quick ? ' (quick, not the board\'s numbers)' : ''}</h3>
+    <div class="mini"><div class="kpi"><div class="l">score</div><div class="v ${ev.rss >= 0 ? 'pos' : 'neg'}">${ev.rss.toFixed(3)}</div></div>
+    <div class="kpi"><div class="l">90% interval</div><div class="v">${iv.length ? `${iv[0].toFixed(2)} … ${iv[1].toFixed(2)}` : '–'}</div></div>
+    <div class="kpi"><div class="l">mean cost</div><div class="v">${f$(ev.cost_usd)}</div></div>
+    <div class="kpi"><div class="l">naive / best possible</div><div class="v">${f$(ev.naive_cost_usd)} / ${f$(ev.clairvoyant_cost_usd)}</div></div></div>
+    ${ev.fallback_weeks ? `<p style="color:#f87171">${ev.fallback_weeks} week(s) were played by the naive rule (an error or over budget).</p>` : ''}
+    <h3>Per episode</h3><table><tr><th>ep</th><th>harm</th><th>skill</th><th>agent</th><th>naive</th><th>best</th></tr>${rows}</table>
+    <p class="hint">skill: 0 = naive rule, 1 = clairvoyant plan (the score of one episode). ● = recorded in this page: click to open it.
+    harm: 1 calmest … 4 most harmful.</p>`;
+  p.querySelector('table').onclick = (e) => { const r = e.target.closest('tr[data-j]'); if (r) setEpisode(+r.dataset.j); };
+}
+function epList(recorded) {
+  return '<h3>Recorded episodes</h3>' + D.episodes.map((e, j) => `<div><button data-j="${j}" class="${j === S.ep ? 'on' : ''}">episode ${e.episode}</button> ${esc(e.label)}</div>`).join('');
+}
+
+function updateSide() {
+  const ep = EP(), w = ep.weeks, i = S.t - 1;
+  CHARTS.forEach((c) => c.set(S.t));
+  if (S.tab === 'cost') {
+    const nv = ep.naive, a = w.cost[i], ca = sum(w.cost.slice(0, S.t));
+    const cn = nv ? sum(nv.cost.slice(0, S.t)) : null;
+    $('#cost-mini').innerHTML =
+      `<div class="kpi"><div class="l">agent, week ${S.t}</div><div class="v">${f$(a)}</div></div>` +
+      (nv ? `<div class="kpi"><div class="l">naive, week ${S.t}</div><div class="v">${f$(nv.cost[i])}</div></div>` : '') +
+      `<div class="kpi"><div class="l">agent so far</div><div class="v">${f$(ca)}</div></div>` +
+      (nv ? `<div class="kpi"><div class="l">vs naive so far</div><div class="v ${ca <= cn ? 'pos' : 'neg'}">${ca <= cn ? '−' : '+'}${f$(Math.abs(ca - cn))}</div></div>` : '');
+  } else if (S.tab === 'mix') {
+    const cc = N.cost_components, nv = ep.naive;
+    const tot = cc.map((_, j) => sum(w.costs.map((r) => r[j]))), ntot = nv ? cc.map((_, j) => sum(nv.costs.map((r) => r[j]))) : null;
+    $('#mix-table').innerHTML = `<table><tr><th>component</th><th>week ${S.t}</th><th>episode</th>${nv ? '<th>naive</th><th>Δ</th>' : ''}</tr>` +
+      cc.map((c, j) => `<tr><td><span class="dot" style="color:${compC(c, j)};background:${compC(c, j)}"></span>${esc(c.replace('_', ' '))}</td><td>${f$(w.costs[i][j])}</td><td>${f$(tot[j])}</td>` +
+        (nv ? `<td>${f$(ntot[j])}</td><td class="${tot[j] - ntot[j] > 0 ? 'neg' : 'pos'}">${tot[j] - ntot[j] > 0 ? '+' : '−'}${f$(Math.abs(tot[j] - ntot[j]))}</td>` : '') + '</tr>').join('') +
+      `<tr><td><b>total</b></td><td><b>${f$(sum(w.costs[i]))}</b></td><td><b>${f$(sum(tot))}</b></td>${nv ? `<td><b>${f$(sum(ntot))}</b></td><td></td>` : ''}</tr></table>`;
+  } else if (S.tab === 'node' && S.sel != null) {
+    const n = S.sel;
+    document.querySelectorAll('.wkn').forEach((x) => (x.textContent = S.t));
+    const facts = [];
+    if (straitCol.has(n)) { const j = straitCol.get(n); facts.push(['open', pct(w.open[i][j])], ['queued', fq(w.queue[i][j])]); }
+    stockByNode[n].forEach(({ k, j }) => facts.push([`stock ${goodN(k)}`, fq(w.stock[i][j])]));
+    sinkIdx.filter((s) => s.n === n).forEach(({ k, j }) => facts.push([`${goodN(k)} demand`, fq(w.demand[i][j])], ['served', fq(w.served[i][j])], ['lost', fq(w.lost[i][j])]));
+    demandIdx.filter((s) => s.n === n).forEach(({ j }) => facts.push(['backlog', fq(w.backlog[i][j])]));
+    if (gridCol.has(n)) facts.push(['power shed', fq(w.shed[i][gridCol.get(n)])]);
+    $('#node-facts').innerHTML = facts.map(([k, v]) => `<span class="k">${esc(k)}</span><span>${v}</span>`).join('') || '<span class="k">nothing stored here</span>';
+    const flow = new Map();
+    w.flows[i].forEach(([e, k, q]) => { if (E[e].tail === n || E[e].head === n) flow.set(e, (flow.get(e) || 0) + q); });
+    $('#node-edges').innerHTML = `<table><tr><th>route</th><th>to / from</th><th>sent</th><th>capacity</th></tr>` + edgesByNode[n].map((e) => {
+      const s = w.state[i].charCodeAt(e) - 48, out = E[e].tail === n;
+      return `<tr title="${esc(E[e].id)}: ${esc(STATE[s].label)}"><td><span class="dot" style="color:${STATE[s].c};background:${STATE[s].c}"></span>${esc(E[e].mode)}</td><td>${out ? '→ ' + esc(V[E[e].head].id) : '← ' + esc(V[E[e].tail].id)}</td><td>${fq(flow.get(e) || 0)}</td><td>${E[e].u0 != null ? fq(w.u[i][e]) : '–'}</td></tr>`;
+    }).join('') + '</table>';
+  } else if (S.tab === 'events') {
+    const now = EVW[S.t] || [];
+    $('#ev-now').innerHTML = now.length ? now.map((j) => evRow(ep.events[j], j)).join('') : '<div class="hint" style="padding:4px">nothing new this week</div>';
+    markEvents();
+  } else if (S.tab === 'eps') {
+    document.querySelectorAll('#p-eps button[data-j]').forEach((b) => (b.onclick = () => setEpisode(+b.dataset.j)));
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// header, legend, controls, week bar
+
+function buildHeader() {
+  const ep = EP();
+  const opts = D.episodes.map((e, j) => `<option value="${j}" ${j === S.ep ? 'selected' : ''}>episode ${e.episode}${e.label ? ' · ' + esc(e.label) : ''}</option>`).join('');
+  $('#chips').innerHTML = `<span class="chip">agent <b>${esc(D.agent)}</b></span><span class="chip">network <b>${esc(D.task)}</b> · ${V.length} nodes · ${E.length} routes</span>` +
+    (D.episodes.length > 1 ? `<select id="ep-sel">${opts}</select>` : `<span class="chip">episode <b>${ep.episode}</b></span>`) +
+    (D.quick ? '<span class="chip" style="color:#fbbf24">quick</span>' : '');
+  const sel = $('#ep-sel');
+  if (sel) sel.onchange = () => setEpisode(+sel.value);
+  const nv = ep.naive, r = ep.eval;
+  const k = [[`episode cost`, f$(ep.J), '']];
+  if (nv) {
+    const sv = (nv.J - ep.J) / Math.abs(nv.J);
+    k.push(['naive rule', f$(nv.J), ''], ['saving vs naive', (sv >= 0 ? '+' : '') + pct(sv), sv >= 0 ? 'pos' : 'neg']);
+  }
+  if (r && r.J_naive_cents - r.J_clairvoyant_cents > 0) {
+    const s = (r.J_naive_cents - r.J_policy_cents) / (r.J_naive_cents - r.J_clairvoyant_cents);
+    k.push(['episode skill', s.toFixed(2), s >= 0 ? 'pos' : 'neg']);
+  }
+  if (D.eval) k.push([`score (${D.eval.episodes} eps)`, D.eval.rss.toFixed(3), D.eval.rss >= 0 ? 'pos' : 'neg']);
+  $('#kpis').innerHTML = k.map(([l, v, c]) => `<div class="kpi"><div class="l">${esc(l)}</div><div class="v ${c}">${v}</div></div>`).join('');
+}
+
+function buildLegend() {
+  const kinds = KIND_ORDER.filter((k) => V.some((v) => v.type === k));
+  const modes = Object.keys(MODE).filter((m) => E.some((e) => e.mode === m));
+  const row = (sw, text, sub) => `<div class="row">${sw}<span>${esc(text)}${sub ? ` <span style="color:var(--dim)">· ${esc(sub)}</span>` : ''}</span></div>`;
+  let h = `<div class="head" id="lg-head"><span>Legend</span><span id="lg-arrow">▾</span></div><div class="body">`;
+  h += '<h4>Nodes</h4>' + kinds.map((k) => row(swatch(k, KIND[k].c), KIND[k].label, KIND[k].help)).join('');
+  h += '<h4>Routes (line style)</h4>' + modes.map((m) => row(lineSwatch('#aab3cc', MODE[m].dash, 1.6), MODE[m].label)).join('');
+  h += '<h4>Route state this week</h4>' + STATE.map((s) => row(lineSwatch(s.c, '', 2.2), s.label)).join('');
+  h += '<h4>Strait</h4>' + STRAIT.map((s) => row(swatch('chokepoint', s.c, 14), s.label)).join('');
+  h += '<h4>Goods (agent\'s shipments)</h4>' + N.goods.map((g, k) => row(lineSwatch(goodC(k), '', 4), goodN(k), N.units[g])).join('');
+  h += `<h4>Symbols</h4>` +
+    row(`<svg width="30" height="12"><line x1="2" y1="6" x2="28" y2="6" stroke="#818cf8" stroke-width="7" stroke-linecap="round" opacity=".9"/></svg>`, 'thick coloured line', 'shipped this week; width = share of capacity') +
+    row(`<svg width="30" height="12"><circle cx="9" cy="6" r="3" fill="#38bdf8"/><circle cx="21" cy="6" r="5" fill="#38bdf8"/></svg>`, 'dots on a route', 'cargo in transit; size = amount, position = progress') +
+    row(`<svg width="30" height="12"><text x="0" y="10" fill="#fdba74" font-size="9" font-weight="700">queue</text></svg>`, 'cargo queued at a strait') +
+    row(`<svg width="30" height="12"><text x="0" y="10" fill="#f87171" font-size="10" font-weight="700">80%</text></svg>`, 'share of demand served', 'markets') +
+    row(`<svg width="30" height="12"><text x="0" y="10" fill="#f87171" font-size="9" font-weight="700">shed</text></svg>`, 'power shed', 'grids');
+  h += `<div class="note">Hover anything for details. Wheel = zoom, drag = pan, double-click = fit. Keys: ← → weeks, space play, N next event.</div></div>`;
+  $('#legend').innerHTML = h;
+  $('#lg-head').onclick = () => { $('#legend').classList.toggle('closed'); $('#lg-arrow').textContent = $('#legend').classList.contains('closed') ? '▸' : '▾'; fit(); };
+  if (innerWidth < 980) $('#legend').classList.add('closed');
+}
+
+function buildControls() {
+  const items = [['flow', 'Shipments'], ['transit', 'In transit'], ['cap', 'Capacities'], ['names', 'Names']];
+  $('#ctl').innerHTML = items.map(([k, l]) => `<button data-k="${k}" class="${S.show[k] ? 'on' : ''}">${l}</button>`).join('') + '<button id="b-fit">⤢ Fit view</button>';
+  $('#ctl').onclick = (ev) => {
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.id === 'b-fit') { fit(); return; }
+    S.show[b.dataset.k] = !S.show[b.dataset.k];
+    b.classList.toggle('on', S.show[b.dataset.k]);
+    renderMap();
+  };
+}
+
+function buildTicks() {
+  const n = T(), box = $('#ticks');
+  let h = '';
+  for (let t = 1; t <= n; t++) {
+    const lv = Math.max(0, ...EVW[t].map((j) => sig(EP().events[j].signal)[2]));
+    if (lv < 1) continue;
+    const top = EVW[t].map((j) => EP().events[j]).sort((a, b) => sig(b.signal)[2] - sig(a.signal)[2])[0];
+    h += `<i style="left:${(((t - 1) / Math.max(n - 1, 1)) * 100).toFixed(2)}%;height:${3 + lv * 2}px;background:${sig(top.signal)[1]}"></i>`;
+  }
+  box.innerHTML = h;
+}
+
+function renderBanner() {
+  const ep = EP(), evs = (EVW[S.t] || []).map((j) => ep.events[j]).filter((e) => sig(e.signal)[2] >= 1)
+    .sort((a, b) => sig(b.signal)[2] - sig(a.signal)[2]);
+  $('#banner .wk').innerHTML = `WEEK ${S.t} <span>/ ${ep.T}</span>`;
+  $('#banner .bev').innerHTML = evs.length
+    ? evs.slice(0, 2).map((e) => `<span style="color:${sig(e.signal)[1]}">${esc(sig(e.signal)[0])}</span> ${esc(e.subject || '')}`).join(' · ') + (evs.length > 2 ? ` · +${evs.length - 2} more` : '')
+    : 'no new disruption this week';
+}
+
+function setWeek(t) {
+  S.t = clamp(t, 1, T());
+  $('#slider').value = S.t;
+  $('#wk').textContent = `Week ${S.t} / ${T()}`;
+  renderMap();
+  renderBanner();
+  updateSide();
+  if (hovered) hideTip();
+}
+function setEpisode(j) {
+  stop();
+  S.ep = j;
+  prepare();
+  $('#slider').max = T();
+  buildHeader();
+  buildTicks();
+  buildSide();
+  setWeek(Math.min(S.t, T()));
+}
+function play() {
+  if (S.timer) { stop(); return; }
+  if (S.t >= T()) setWeek(1);
+  $('#b-play').textContent = '❚❚ Pause';
+  $('#b-play').classList.add('on');
+  S.timer = setInterval(() => { if (S.t >= T()) stop(); else setWeek(S.t + 1); }, 1000 / +$('#speed').value);
+}
+function stop() {
+  if (S.timer) clearInterval(S.timer);
+  S.timer = null;
+  $('#b-play').textContent = '▶ Play';
+  $('#b-play').classList.remove('on');
+}
+function nextEvent() {
+  for (let t = S.t + 1; t <= T(); t++) if (EVW[t].some((j) => sig(EP().events[j].signal)[2] >= 1)) { setWeek(t); return; }
+}
+
+$('#b-first').onclick = () => setWeek(1);
+$('#b-prev').onclick = () => setWeek(S.t - 1);
+$('#b-next').onclick = () => setWeek(S.t + 1);
+$('#b-last').onclick = () => setWeek(T());
+$('#b-play').onclick = play;
+$('#b-evt').onclick = nextEvent;
+$('#speed').onchange = () => { if (S.timer) { stop(); play(); } };
+$('#slider').oninput = (ev) => setWeek(+ev.target.value);
+window.addEventListener('keydown', (ev) => {
+  if (ev.target.tagName === 'SELECT' || ev.target.tagName === 'INPUT' && ev.target.type !== 'range') return;
+  if (ev.key === 'ArrowRight') { ev.preventDefault(); setWeek(S.t + 1); }
+  else if (ev.key === 'ArrowLeft') { ev.preventDefault(); setWeek(S.t - 1); }
+  else if (ev.key === ' ') { ev.preventDefault(); play(); }
+  else if (ev.key === 'Home') setWeek(1);
+  else if (ev.key === 'End') setWeek(T());
+  else if (ev.key === 'n' || ev.key === 'N') nextEvent();
+});
+let rz = null;
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { buildSide(); fit(); }, 200); });
+
+$('#tabs').innerHTML = TABS.map(([k, l]) => `<button data-t="${k}">${l}</button>`).join('');
+$('#tabs').onclick = (ev) => { const b = ev.target.closest('button'); if (b) setTab(b.dataset.t); };
+
+// start
+buildMap();
+buildLegend();
+buildControls();
+fit();
+prepare();
+$('#slider').max = T();
+buildHeader();
+buildTicks();
+document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === S.tab));
+document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('on', p.id === 'p-' + S.tab));
+buildSide();
+// open on the week the episode is most disrupted: the least open strait, else week 1
+const opens = EP().weeks.open.map((r) => Math.min(...r.map((o) => (o == null ? 1 : o))));
+const low = opens.length ? opens.indexOf(Math.min(...opens)) : 0;
+setWeek(opens[low] < 1 ? low + 1 : 1);
+})();
+</script>
+</body>
+</html>

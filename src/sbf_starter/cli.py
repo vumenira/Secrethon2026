@@ -413,9 +413,46 @@ def status(
         sys.exit(FAILED)
 
 
+def view(
+    agent: str,
+    task: str = DEFAULT_TASK,
+    episode: int | list[int] | None = None,
+    episodes: str | int | list[int] = "dev",
+    entropy: int = 0,
+    quick: bool = False,
+    n_jobs: int = -1,
+    seed: int = 0,
+    fresh: bool = False,
+    out: str | None = None,
+) -> None:
+    """An interactive page of the agent's episodes: the map, its shipments week by week, costs and events.
+
+    Evaluates the agent (as evaluate), records its worst and best episode against naive and one where a strait closes,
+    and writes outputs/view/<agent>_<task>/viewer.html (one file, open it in a browser). Reused while the agent's files
+    do not change.
+
+    Args:
+        agent: an agent's name, a submission folder or zip, or an agent.py.
+        task: tiny, small (the public board's) or full (the private board's).
+        episode: one episode (or a list) to record without evaluating.
+        episodes: the evaluation's episodes: dev (20, 5 per harm level), a count k or a list.
+        entropy: 0 for the public dev episodes; any other integer for scenarios of your own.
+        quick: seconds, not the leaderboard's numbers (a rough naive rule, 4 episodes).
+        n_jobs: workers of a first run's reference computation (-1: all cores).
+        seed: the reset's seed of the recorded episodes.
+        fresh: ignore what an earlier run saved.
+        out: the folder to write to (default: outputs/view/<agent>_<task>).
+
+    """
+    from sbf_starter.viewer import view as write_view
+
+    write_view(agent, task, episode, episodes, entropy, quick, n_jobs, seed, fresh, out)
+
+
 COMMANDS = {
     "evaluate": evaluate,
     "compare": compare,
+    "view": view,
     "check": check,
     "pack": pack,
     "token": token,

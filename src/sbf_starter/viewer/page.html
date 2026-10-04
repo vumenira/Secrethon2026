@@ -122,18 +122,40 @@ aside {
 .e.closed .ecap { fill: #fca5a5; }
 .e path, .e text { pointer-events: none; }
 .e .eh { pointer-events: stroke; }
-.n { cursor: pointer; }
+.n { cursor: grab; }
+#map.drag .n { cursor: grabbing; }
 .n .halo { opacity: 0.75; transition: opacity 0.15s; }
 .n:hover .halo, .n.sel .halo { opacity: 1; }
-.n .ns { stroke: #070a14; stroke-width: 1.6; }
+.n .ns { stroke-width: 2; }
 .n.sel .ns { stroke: #fff; stroke-width: 2.2; }
 .n .nl { font-size: 10.5px; fill: #c4cbe0; text-anchor: middle; paint-order: stroke; stroke: #070a14; stroke-width: 3px; pointer-events: none; }
 .n .nb { font-size: 10px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #070a14; stroke-width: 3px; pointer-events: none; }
 .hidenames .n .nl { display: none; }
 .focus .e:not(.hl) { opacity: 0.12; }
 .focus .n:not(.hl) { opacity: 0.35; }
-.focus #dots { opacity: 0.35; }
-#dots circle { stroke-width: 3; stroke-opacity: 0.28; cursor: pointer; }
+.focus #veh { opacity: 0.35; }
+.e.idle { opacity: 0.2; }
+.e.off { opacity: 0.05; }
+.n.off { opacity: 0.3; }
+.focus .e.hl { opacity: 1; }
+.n .ne { text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.v { cursor: pointer; }
+.v circle { stroke-width: 2; }
+.v text { text-anchor: middle; dominant-baseline: central; }
+.edot { display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid; border-radius: 50%; flex: none; line-height: 1; }
+.lsw { display: inline-flex; align-items: center; gap: 2px; min-width: 44px; }
+#legend .good { cursor: pointer; border-radius: 6px; padding: 1px 3px; margin: 1px -3px; }
+#legend .good:hover { background: rgba(128, 150, 214, 0.12); }
+#legend .good.pick { background: rgba(103, 232, 249, 0.14); outline: 1px solid var(--accent); }
+#actions { left: 12px; right: 12px; bottom: 12px; height: 42%; display: none; flex-direction: column; z-index: 3; background: #0b1020; }
+#act-body td:nth-child(2), #act-body th:nth-child(2) { text-align: left; }
+#actions .ah { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+#actions .ah .m, #act-body .m { color: var(--muted); font-weight: 400; }
+#act-title { font-weight: 650; flex: 1; min-width: 200px; }
+#act-body { overflow: auto; padding: 4px 10px 10px; }
+#act-body tr[data-j] { cursor: default; }
+#act-body tr[data-j]:hover td { background: rgba(103, 232, 249, 0.08); }
+.act-rel { padding: 6px 2px; color: var(--text); font-size: 12px; }
 
 /* side panel */
 .tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
@@ -207,6 +229,12 @@ footer {
     <div class="card" id="banner"><div class="wk"></div><div class="bev"></div></div>
     <div class="card" id="ctl"></div>
     <div class="card" id="legend"></div>
+    <div class="card" id="actions">
+      <div class="ah"><div id="act-title"></div>
+        <div id="act-filters"><button data-f="onlyChanged">only changed from plan</button> <button data-f="onlyClipped">only clipped</button></div>
+        <button id="act-close" title="Close (A)">✕</button></div>
+      <div id="act-body"></div>
+    </div>
   </section>
   <aside>
     <div class="tabs" id="tabs"></div>
@@ -246,14 +274,14 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const KIND = {
-  source:     { c: '#22d3ee', shape: 'circle',  label: 'Source', help: 'produces fuel or wafers' },
-  terminal:   { c: '#a78bfa', shape: 'tridown', label: 'Terminal', help: 'import port for fuel' },
-  grid:       { c: '#fbbf24', shape: 'hex',     label: 'Power grid', help: 'burns fuel, powers fabs' },
-  chokepoint: { c: '#94a3b8', shape: 'diamond', label: 'Strait', help: 'sea chokepoint; can close' },
-  material:   { c: '#f472b6', shape: 'pent',    label: 'Material supplier', help: 'wafers, neon' },
-  fab:        { c: '#34d399', shape: 'square',  label: 'Chip fab', help: 'turns wafers into chips' },
-  osat:       { c: '#60a5fa', shape: 'triup',   label: 'Packaging plant', help: 'packages raw chips' },
-  sink:       { c: '#fb7185', shape: 'target',  label: 'Market', help: 'final demand' },
+  source:     { c: '#22d3ee', e: '🛢️', label: 'Source', help: 'produces fuel' },
+  terminal:   { c: '#a78bfa', e: '⚓', label: 'Port terminal', help: 'imports fuel' },
+  grid:       { c: '#fbbf24', e: '⚡', label: 'Power grid', help: 'burns fuel, powers fabs' },
+  chokepoint: { c: '#94a3b8', e: '🌊', label: 'Strait', help: 'sea chokepoint; can close' },
+  material:   { c: '#f472b6', e: '🧪', label: 'Material supplier', help: 'wafers, neon' },
+  fab:        { c: '#34d399', e: '🏭', label: 'Chip fab', help: 'turns wafers into chips' },
+  osat:       { c: '#60a5fa', e: '📦', label: 'Packaging plant', help: 'packages raw chips' },
+  sink:       { c: '#fb7185', e: '🏙️', label: 'Market', help: 'final demand' },
 };
 const KIND_ORDER = ['source', 'terminal', 'grid', 'chokepoint', 'material', 'fab', 'osat', 'sink'];
 const GOOD_C = {
@@ -264,11 +292,17 @@ const GOOD_NAME = {
   lng: 'LNG', crude: 'Crude oil', nucfuel: 'Nuclear fuel', wafer: 'Wafers',
   chip_le_raw: 'Leading-edge chips, raw', chip_mat_raw: 'Mature chips, raw', chip_le: 'Leading-edge chips', chip_mat: 'Mature chips',
 };
+const GOOD_E = {
+  lng: '🔥', crude: '🛢️', nucfuel: '☢️', wafer: '💿', chip_le_raw: '🔲', chip_mat_raw: '🔲', chip_le: '💾', chip_mat: '💾',
+};
 const EXTRA = ['#38bdf8', '#f59e0b', '#a3e635', '#e879f9', '#2dd4bf', '#fdba74', '#818cf8', '#f43f5e'];
 const goodC = (k) => GOOD_C[N.goods[k]] || EXTRA[k % EXTRA.length];
 const goodN = (k) => GOOD_NAME[N.goods[k]] || N.goods[k];
-const MODE = { sea: { dash: '', label: 'Sea route' }, air: { dash: '6 4', label: 'Air route' },
-  pipeline: { dash: '11 3 2 3', label: 'Pipeline' }, grid: { dash: '1.5 3.5', label: 'Grid link (power → fab)' } };
+const goodE = (k) => GOOD_E[N.goods[k]] || '📦';
+const goodTag = (k) => `${goodE(k)} <span style="color:${goodC(k)}">${esc(goodN(k))}</span>`;
+const MODE = { sea: { dash: '', label: 'Sea route', e: '🚢' }, air: { dash: '6 4', label: 'Air route', e: '✈️' },
+  pipeline: { dash: '11 3 2 3', label: 'Pipeline', e: '🔧' }, grid: { dash: '1.5 3.5', label: 'Grid link (power → fab)', e: '🔌' } };
+const mode = (e) => MODE[E[e].mode] || { dash: '', label: E[e].mode, e: '·' };
 const STATE = [
   { c: '#46557a', label: 'Open' }, { c: '#f59e0b', label: 'Reduced capacity' },
   { c: '#ef4444', label: 'Closed / sanctioned' }, { c: '#2b3248', label: 'Not observed' },
@@ -328,63 +362,59 @@ E.forEach((e, i) => { edgesByNode[e.tail].push(i); edgesByNode[e.head].push(i); 
 
 const S = {
   ep: 0, t: 1, timer: null, sel: null, tab: 'cost',
-  show: { cap: E.length <= 40, flow: true, transit: true, names: true },
+  show: { cap: E.length <= 40, flow: true, transit: true, names: true, idle: true },
+  good: null, actions: false, onlyChanged: false, onlyClipped: false,
 };
 const EP = () => D.episodes[S.ep];
 const T = () => EP().T;
 
 // ---------------------------------------------------------------------------------------------------------------------
-// geometry: columns by node kind (the package's positions), quadratic edges bent apart
+// geometry: columns from the export (kinds left to right, straits in the gaps), S-curves bent apart when parallel
 
-const R = V.length > 60 ? 7 : V.length > 20 ? 9 : 12;
+const R = V.length > 60 ? 12 : V.length > 20 ? 14 : 17;  // node disc radius: room for an emoji
 const FLOW_W = E.length > 200 ? 3.5 : E.length > 40 ? 4.5 : 6.5;  // the widest shipment line, thinner on big networks
-const SX = V.length > 60 ? 230 : 250, SY = V.length > 60 ? 44 : V.length > 20 ? 56 : 105;
-const P = V.map((n) => [n.x * SX, -n.y * SY]);
-const rank = [], seenPair = {};
-E.forEach((e, i) => {
-  const key = Math.min(e.tail, e.head) + '-' + Math.max(e.tail, e.head) + (e.tail < e.head ? '' : 'r');
-  rank[i] = seenPair[key] || 0;
-  seenPair[key] = rank[i] + 1;
-});
-const toward = (a, b, d) => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [a[0] + (b[0] - a[0]) / l * d, a[1] + (b[1] - a[1]) / l * d]; };
-const G = E.map((e, i) => {
-  const p0 = P[e.tail], p2 = P[e.head];
-  const dx = p2[0] - p0[0], dy = p2[1] - p0[1], L = Math.hypot(dx, dy) || 1;
-  const off = 0.1 * L + 16 + 18 * rank[i];
-  const c = [(p0[0] + p2[0]) / 2 - dy / L * off, (p0[1] + p2[1]) / 2 + dx / L * off];
-  const a = toward(p0, c, R + 2), b = toward(p2, c, R + 4);
-  const r1 = (v) => v.toFixed(1);
-  return { a, b, c, d: `M${r1(a[0])},${r1(a[1])} Q${r1(c[0])},${r1(c[1])} ${r1(b[0])},${r1(b[1])}`, nx: -dy / L, ny: dx / L };
-});
-function qpt(g, f) {
-  const u = 1 - f;
-  return [u * u * g.a[0] + 2 * u * f * g.c[0] + f * f * g.b[0], u * u * g.a[1] + 2 * u * f * g.c[1] + f * f * g.b[1]];
-}
+// spacing: a fixed step per column, and rows stretched so the network has about the map area's proportions (it then
+// fills the screen at a readable scale instead of a thin strip), never closer than the nodes need
+const SX = 120;  // per column (kinds are 2 columns apart)
+const spanX = Math.max(...V.map((n) => n.x)) - Math.min(...V.map((n) => n.x)) || 1;
+const spanY = Math.max(...V.map((n) => n.y)) - Math.min(...V.map((n) => n.y)) || 1;
+const SY = clamp((SX * spanX) / (spanY * 1.45), 3.6 * R, 170);  // per row
+const P = V.map((n) => [n.x * SX, n.y * SY]);
+const P0 = P.map((p) => p.slice());  // the computed layout, for "Reset layout"
+const LAYOUT_KEY = `sbf-view-layout:${D.task}:${V.length}:${E.length}`;  // nodes moved by hand, per network
+try {
+  const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}');
+  Object.entries(saved).forEach(([n, xy]) => { if (P[n] && Array.isArray(xy)) P[n] = xy; });
+} catch (err) { /* no storage (private window): the computed layout */ }
 
-function shapePath(kind, r) {
-  const poly = (n, rot, k = 1) => {
-    let d = '';
-    for (let i = 0; i < n; i++) {
-      const a = rot + (i * 2 * Math.PI) / n;
-      d += (i ? 'L' : 'M') + (Math.cos(a) * r * k).toFixed(2) + ',' + (Math.sin(a) * r * k).toFixed(2);
-    }
-    return d + 'Z';
-  };
-  const circ = (rr) => `M${-rr},0a${rr},${rr} 0 1,0 ${2 * rr},0a${rr},${rr} 0 1,0 ${-2 * rr},0Z`;
-  switch (KIND[kind] ? KIND[kind].shape : 'circle') {
-    case 'square': return `M${-r * 0.88},${-r * 0.88}h${r * 1.76}v${r * 1.76}h${-r * 1.76}Z`;
-    case 'diamond': return poly(4, -Math.PI / 2, 1.3);
-    case 'triup': return poly(3, -Math.PI / 2, 1.3);
-    case 'tridown': return poly(3, Math.PI / 2, 1.3);
-    case 'hex': return poly(6, 0, 1.08);
-    case 'pent': return poly(5, -Math.PI / 2, 1.12);
-    case 'target': return circ(r * 1.12) + circ(r * 0.78) + circ(r * 0.42);
-    default: return circ(r);
-  }
+// routes joining the same two nodes (either direction) are spread side by side, symmetric around the straight line
+const pairKey = (e) => Math.min(e.tail, e.head) + '-' + Math.max(e.tail, e.head);
+const rank = [], pairN = {};
+E.forEach((e, i) => { const k = pairKey(e); rank[i] = pairN[k] || 0; pairN[k] = rank[i] + 1; });
+const PAR = 30;  // the gap between parallel routes at their middle control points
+const toward = (a, b, d) => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [a[0] + (b[0] - a[0]) / l * d, a[1] + (b[1] - a[1]) / l * d]; };
+const r1 = (v) => v.toFixed(1);
+function geom(i) {
+  // a cubic S-curve leaving and entering horizontally, shifted sideways when it has parallel routes
+  const e = E[i], p0 = P[e.tail], p3 = P[e.head], dx = p3[0] - p0[0];
+  const lo = P[Math.min(e.tail, e.head)], hi = P[Math.max(e.tail, e.head)];  // one normal for both directions
+  const L = Math.hypot(hi[0] - lo[0], hi[1] - lo[1]) || 1, nx = -(hi[1] - lo[1]) / L, ny = (hi[0] - lo[0]) / L;
+  const off = (rank[i] - (pairN[pairKey(e)] - 1) / 2) * PAR;
+  const reach = Math.abs(dx) < 1 ? 70 : dx * 0.5;  // same column: bulge to the right
+  const c1 = [p0[0] + reach + nx * off, p0[1] + ny * off];
+  const c2 = [p3[0] - (Math.abs(dx) < 1 ? -reach : reach) + nx * off, p3[1] + ny * off];
+  const a = toward(p0, c1, R + 2), b = toward(p3, c2, R + 5);
+  return { a, c1, c2, b, d: `M${r1(a[0])},${r1(a[1])} C${r1(c1[0])},${r1(c1[1])} ${r1(c2[0])},${r1(c2[1])} ${r1(b[0])},${r1(b[1])}` };
 }
-function swatch(kind, colour, size = 16) {
-  const r = size * 0.33;
-  return `<svg width="${size}" height="${size}" viewBox="${-size / 2} ${-size / 2} ${size} ${size}"><path d="${shapePath(kind, r)}" fill="${colour}" fill-rule="evenodd" stroke="#070a14" stroke-width="1"/></svg>`;
+const G = E.map((e, i) => geom(i));
+function cpt(g, f) {  // the point at parameter f of an edge's cubic
+  const u = 1 - f, A = u * u * u, B = 3 * u * u * f, C = 3 * u * f * f, Dd = f * f * f;
+  return [A * g.a[0] + B * g.c1[0] + C * g.c2[0] + Dd * g.b[0], A * g.a[1] + B * g.c1[1] + C * g.c2[1] + Dd * g.b[1]];
+}
+const kindOf = (t) => (KIND[t] ? t : 'source');
+function emojiDot(kind, size = 20) {  // the legend's and panels' copy of a node: an emoji on a disc of its kind's colour
+  const c = KIND[kindOf(kind)].c;
+  return `<span class="edot" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.62)}px;background:${c}33;border-color:${c}">${KIND[kindOf(kind)].e}</span>`;
 }
 function lineSwatch(colour, dash, width = 2, w = 30) {
   return `<svg width="${w}" height="10"><line x1="1" y1="5" x2="${w - 1}" y2="5" stroke="${colour}" stroke-width="${width}" stroke-dasharray="${dash}" stroke-linecap="round"/></svg>`;
@@ -394,11 +424,13 @@ function lineSwatch(colour, dash, width = 2, w = 30) {
 // the map, built once
 
 const svg = $('#map');
-const EL = { e: [], n: [], dots: [], dotsG: null };
+const EL = { e: [], n: [], veh: [], vehG: null };
 let curState = [];
+const goodsOfNode = V.map(() => new Set());
+E.forEach((e) => e.K.forEach((k) => { goodsOfNode[e.tail].add(k); goodsOfNode[e.head].add(k); }));
 function buildMap() {
   let s = '<defs>';
-  const halo = (id, c) => `<radialGradient id="${id}"><stop offset="0" stop-color="${c}" stop-opacity=".6"/><stop offset=".4" stop-color="${c}" stop-opacity=".2"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  const halo = (id, c) => `<radialGradient id="${id}"><stop offset="0" stop-color="${c}" stop-opacity=".55"/><stop offset=".45" stop-color="${c}" stop-opacity=".16"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
   for (const k of KIND_ORDER) s += halo('h-' + k, KIND[k].c);
   STRAIT.forEach((st, j) => { s += halo('h-s' + j, st.c); });
   STATE.forEach((st, j) => {
@@ -406,27 +438,29 @@ function buildMap() {
   });
   s += '</defs><g id="vp"><g id="edges">';
   E.forEach((e, i) => {
-    const g = G[i], m = qpt(g, 0.5);
+    const g = G[i], m = cpt(g, 0.5);
     s += `<g class="e${e.u0 != null ? ' cap' : ''}" data-e="${i}"><path class="eg" d="${g.d}"/>` +
-      `<path class="eb" d="${g.d}" stroke="${STATE[0].c}" stroke-dasharray="${(MODE[e.mode] || MODE.sea).dash}" marker-end="url(#m0)"/>` +
+      `<path class="eb" d="${g.d}" stroke="${STATE[0].c}" stroke-dasharray="${mode(i).dash}" marker-end="url(#m0)"/>` +
       `<path class="ef2" d="${g.d}"/><path class="ef" d="${g.d}"/>` +
-      `<text class="ecap" x="${m[0].toFixed(1)}" y="${(m[1] + 3).toFixed(1)}"></text><path class="eh" d="${g.d}"/></g>`;
+      `<text class="ecap" x="${r1(m[0])}" y="${r1(m[1] - 4)}"></text><path class="eh" d="${g.d}"/></g>`;
   });
-  s += '</g><g id="dots"></g><g id="nodes">';
+  s += '</g><g id="veh"></g><g id="nodes">';
   V.forEach((n, i) => {
-    const k = KIND[n.type] ? n.type : 'source';
-    s += `<g class="n" data-n="${i}" transform="translate(${P[i][0].toFixed(1)},${P[i][1].toFixed(1)})">` +
-      `<circle class="halo" r="${(R * 3.2).toFixed(1)}" fill="url(#h-${k})"/>` +
-      `<path class="ns" d="${shapePath(k, R)}" fill="${KIND[k].c}" fill-rule="evenodd"/>` +
-      `<text class="nl" y="${R + 13}">${esc(n.id)}</text><text class="nb" y="${-R - 7}"></text></g>`;
+    const k = kindOf(n.type), c = KIND[k].c;
+    s += `<g class="n" data-n="${i}" transform="translate(${r1(P[i][0])},${r1(P[i][1])})">` +
+      `<circle class="halo" r="${r1(R * 2.9)}" fill="url(#h-${k})"/>` +
+      `<circle class="ns" r="${R}" fill="${c}" fill-opacity=".22" stroke="${c}"/>` +
+      `<text class="ne" font-size="${r1(R * 1.05)}">${KIND[k].e}</text>` +
+      `<text class="nl" y="${R + 14}">${esc(n.id)}</text><text class="nb" y="${-R - 8}"></text></g>`;
   });
   s += '</g></g>';
   svg.innerHTML = s;
   EL.e = [...svg.querySelectorAll('.e')].map((g) => ({
     g, base: g.querySelector('.eb'), f: g.querySelector('.ef'), f2: g.querySelector('.ef2'), cap: g.querySelector('.ecap'),
+    paths: [...g.querySelectorAll('path')],
   }));
   EL.n = [...svg.querySelectorAll('.n')].map((g) => ({ g, halo: g.querySelector('.halo'), shape: g.querySelector('.ns'), badge: g.querySelector('.nb') }));
-  EL.dotsG = svg.querySelector('#dots');
+  EL.vehG = svg.querySelector('#veh');
   curState = E.map(() => 0);
 }
 
@@ -459,27 +493,65 @@ svg.addEventListener('wheel', (ev) => {
   applyVB();
 }, { passive: false });
 let drag = null;
+// dragging a node moves it and redraws only its own routes (once per frame); dragging the background pans
+function moveNodes(nodes) {
+  const edges = new Set();
+  nodes.forEach((n) => {
+    EL.n[n].g.setAttribute('transform', `translate(${r1(P[n][0])},${r1(P[n][1])})`);
+    edgesByNode[n].forEach((e) => edges.add(e));
+  });
+  edges.forEach((e) => {
+    G[e] = geom(e);
+    EL.e[e].paths.forEach((p) => p.setAttribute('d', G[e].d));
+    const m = cpt(G[e], 0.5);
+    EL.e[e].cap.setAttribute('x', r1(m[0]));
+    EL.e[e].cap.setAttribute('y', r1(m[1] - 4));
+  });
+}
+function saveLayout() {
+  const moved = {};
+  P.forEach((p, n) => { if (p[0] !== P0[n][0] || p[1] !== P0[n][1]) moved[n] = [Math.round(p[0]), Math.round(p[1])]; });
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(moved)); } catch (err) { /* not kept: fine */ }
+}
+function resetLayout() {
+  P.forEach((p, n) => { P[n] = P0[n].slice(); });
+  moveNodes(V.map((_, n) => n));
+  try { localStorage.removeItem(LAYOUT_KEY); } catch (err) { /* nothing kept */ }
+  renderMap();
+}
+let frame = null;
 svg.addEventListener('pointerdown', (ev) => {
   if (ev.button !== 0) return;
+  const ng = ev.target.closest('[data-n]');
   drag = { x: ev.clientX, y: ev.clientY, vb: VB.slice(), moved: false, sc: svgPt(ev)[2] };
+  if (ng) { drag.node = +ng.dataset.n; drag.p = P[drag.node].slice(); }
 });
 window.addEventListener('pointermove', (ev) => {
   if (!drag) return;
   const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
   if (!drag.moved && Math.hypot(dx, dy) < 4) return;
-  if (!drag.moved) { drag.moved = true; svg.classList.add('drag'); hideTip(); }
+  if (!drag.moved) { drag.moved = true; svg.classList.add('drag'); hideTip(); unfocus(); }
+  if (drag.node != null) {
+    P[drag.node] = [drag.p[0] + dx * drag.sc, drag.p[1] + dy * drag.sc];
+    if (!frame) frame = requestAnimationFrame(() => { frame = null; if (drag && drag.node != null) moveNodes([drag.node]); });
+    return;
+  }
   VB = [drag.vb[0] - dx * drag.sc, drag.vb[1] - dy * drag.sc, drag.vb[2], drag.vb[3]];
   applyVB();
 });
 window.addEventListener('pointerup', () => {
-  if (drag && drag.moved) { svg.classList.remove('drag'); setTimeout(() => (drag = null), 0); } else drag = null;
+  if (drag && drag.moved) {
+    svg.classList.remove('drag');
+    if (drag.node != null) { moveNodes([drag.node]); renderMap(); saveLayout(); }  // vehicles follow the moved routes
+    setTimeout(() => (drag = null), 0);
+  } else drag = null;
 });
 svg.addEventListener('dblclick', fit);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // per-episode precomputation
 
-let NORM = [], QMAX = 1, EVW = [];
+let NORM = [], VMAX = 1, EVW = [];
 function prepare() {
   const w = EP().weeks;
   const mx = E.map(() => 0);
@@ -489,8 +561,12 @@ function prepare() {
     tot.forEach((q, e) => { mx[e] = Math.max(mx[e], q); });
   });
   NORM = E.map((e, i) => (e.u0 ? e.u0 : mx[i] || 1));
-  QMAX = 1;
-  w.transit.forEach((rows) => rows.forEach((r) => { QMAX = Math.max(QMAX, r[4]); }));
+  VMAX = 1;  // the most cargo on one route in any week: sizes the vehicles
+  w.transit.forEach((rows) => {
+    const tot = new Map();
+    rows.forEach(([e, , , , q]) => tot.set(e, (tot.get(e) || 0) + q));
+    tot.forEach((q) => { VMAX = Math.max(VMAX, q); });
+  });
   EVW = Array.from({ length: T() + 2 }, () => []);
   EP().events.forEach((e, j) => { if (e.week >= 1 && e.week <= T()) EVW[e.week].push(j); });
 }
@@ -498,10 +574,32 @@ function prepare() {
 // ---------------------------------------------------------------------------------------------------------------------
 // render one week of the map
 
+const shown = (k) => S.good == null || k === S.good;  // the good filter
 let activeFlow = new Set();
 function renderMap() {
   const ep = EP(), w = ep.weeks, i = S.t - 1;
   const st = w.state[i], u = w.u[i];
+
+  // the agent's shipments this week: width by share of capacity, colour of the main good
+  const agg = new Map();
+  for (const [e, k, q] of w.flows[i]) {
+    if (!shown(k)) continue;
+    const a = agg.get(e) || { q: 0, k: k, bq: 0 };
+    a.q += q;
+    if (q > a.bq) { a.bq = q; a.k = k; }
+    agg.set(e, a);
+  }
+  // cargo in transit, one vehicle per route: the quantity-weighted share of the lead time already travelled
+  const veh = new Map();
+  for (const [e, k, , arr, q] of w.transit[i]) {
+    if (!shown(k)) continue;
+    const tau = Math.max(E[e].tau0 || 1, 1), f = clamp(1 - (arr - S.t) / tau, 0.1, 0.9);
+    const v = veh.get(e) || { q: 0, fq: 0, k: k, bq: 0 };
+    v.q += q; v.fq += f * q;
+    if (q > v.bq) { v.bq = q; v.k = k; }
+    veh.set(e, v);
+  }
+
   for (let e = 0; e < E.length; e++) {
     const s = st.charCodeAt(e) - 48, el = EL.e[e];
     if (s !== curState[e]) {
@@ -511,21 +609,15 @@ function renderMap() {
       el.g.classList.toggle('closed', s === 2);
       el.g.classList.toggle('reduced', s === 1);
     }
-    if (S.show.cap && E[e].u0 != null) {
-      el.cap.textContent = s === 1 ? `${fq(u[e])}/${fq(E[e].u0)}` : fq(u[e]);
-    }
+    if (S.show.cap && E[e].u0 != null) el.cap.textContent = s === 1 ? `${fq(u[e])}/${fq(E[e].u0)}` : fq(u[e]);
+    el.g.classList.toggle('off', S.good != null && !E[e].K.includes(S.good));
+    el.g.classList.toggle('idle', S.show.idle && !agg.has(e) && !(S.show.transit && veh.has(e)) && s < 2);
   }
+  EL.n.forEach((el, n) => el.g.classList.toggle('off', S.good != null && !goodsOfNode[n].has(S.good)));
   svg.classList.toggle('showcap', S.show.cap);
   svg.classList.toggle('hidenames', !S.show.names);
 
-  // the agent's shipments this week: width by share of capacity, colour of the main good
-  const agg = new Map();
-  if (S.show.flow) for (const [e, k, q] of w.flows[i]) {
-    const a = agg.get(e) || { q: 0, k: k, bq: 0 };
-    a.q += q;
-    if (q > a.bq) { a.bq = q; a.k = k; }
-    agg.set(e, a);
-  }
+  if (!S.show.flow) agg.clear();
   for (const e of activeFlow) if (!agg.has(e)) EL.e[e].g.classList.remove('flow');
   activeFlow = new Set(agg.keys());
   for (const [e, a] of agg) {
@@ -535,31 +627,35 @@ function renderMap() {
     el.g.classList.add('flow');
   }
 
-  // goods in transit: a dot along the edge by the share of its lead time already travelled
-  const rows = S.show.transit ? w.transit[i] : [];
-  while (EL.dots.length < rows.length) {
-    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    c.dataset.d = EL.dots.length;
-    EL.dotsG.appendChild(c);
-    EL.dots.push(c);
+  // vehicles: 🚢 on sea routes, ✈️ on air routes, a plain disc on pipelines and grid links; pooled elements
+  const list = S.show.transit ? [...veh] : [];
+  while (EL.veh.length < list.length) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'v');
+    g.innerHTML = '<circle/><text></text>';
+    EL.vehG.appendChild(g);
+    EL.veh.push({ g, c: g.firstChild, t: g.lastChild });
   }
-  rows.forEach(([e, k, , arr, q], j) => {
-    const g = G[e], rem = arr - S.t, tau = Math.max(E[e].tau0 || 1, 1);
-    const f = clamp(1 - rem / tau, 0.1, 0.9), p = qpt(g, f), jit = ((k % 3) - 1) * 3.5;
-    const d = EL.dots[j], c = goodC(k);
-    d.setAttribute('cx', (p[0] + g.nx * jit).toFixed(1));
-    d.setAttribute('cy', (p[1] + g.ny * jit).toFixed(1));
-    d.setAttribute('r', (1.8 + 4.5 * Math.sqrt(q / QMAX)).toFixed(2));
-    d.setAttribute('fill', c); d.setAttribute('stroke', c);
-    d.style.display = '';
+  list.forEach(([e, v], j) => {
+    const p = cpt(G[e], v.fq / v.q), el = EL.veh[j], c = goodC(v.k);
+    const sz = 9 + 10 * Math.sqrt(v.q / VMAX), icon = E[e].mode === 'sea' || E[e].mode === 'air' ? mode(e).e : '';
+    el.g.dataset.v = e;
+    el.g.setAttribute('transform', `translate(${r1(p[0])},${r1(p[1])})`);
+    el.c.setAttribute('r', r1(icon ? sz * 0.62 : sz * 0.32));
+    el.c.setAttribute('stroke', c);
+    el.c.setAttribute('fill', icon ? '#0b1020' : c);
+    el.t.setAttribute('font-size', r1(sz));
+    el.t.textContent = icon;
+    el.g.style.display = '';
   });
-  for (let j = rows.length; j < EL.dots.length; j++) EL.dots[j].style.display = 'none';
+  for (let j = list.length; j < EL.veh.length; j++) EL.veh[j].g.style.display = 'none';
 
   // nodes: straits by open fraction, badges for queues, unmet demand and power shed
   const badges = V.map(() => null);
   N.straits.forEach((n, j) => {
-    const o = w.open[i][j], idx = straitIdx(o), el = EL.n[n];
-    el.shape.setAttribute('fill', idx < 0 ? STATE[3].c : STRAIT[idx].c);
+    const o = w.open[i][j], idx = straitIdx(o), el = EL.n[n], c = idx < 0 ? STATE[3].c : STRAIT[idx].c;
+    el.shape.setAttribute('fill', c);
+    el.shape.setAttribute('stroke', c);
     el.halo.setAttribute('fill', `url(#h-${idx < 0 ? 'chokepoint' : 's' + idx})`);
     const q = w.queue[i][j];
     if (q > 0) badges[n] = [`queue ${fq(q)}`, '#fdba74'];
@@ -596,9 +692,9 @@ const badge = (text, c) => `<span class="badge" style="background:${c}22;color:$
 function edgeTip(e) {
   const ed = E[e], w = EP().weeks, i = S.t - 1, s = w.state[i].charCodeAt(e) - 48;
   const lines = [];
-  lines.push(`<div class="t">${esc(ed.id)} · ${esc((MODE[ed.mode] || { label: ed.mode }).label)}${badge(STATE[s].label, STATE[s].c)}</div>`);
-  lines.push(`<div>${esc(edgeName(e))}</div>`);
-  lines.push(`<div class="m">carries ${ed.K.map((k) => `<span style="color:${goodC(k)}">${esc(goodN(k))}</span>`).join(', ') || '–'}</div>`);
+  lines.push(`<div class="t">${mode(e).e} ${esc(mode(e).label)}${badge(STATE[s].label, STATE[s].c)}</div>`);
+  lines.push(`<div>${esc(edgeName(e))} <span class="m">· ${esc(ed.id)}</span></div>`);
+  lines.push(`<div class="m">carries ${ed.K.map(goodTag).join(', ') || '–'}</div>`);
   if (ed.u0 != null) {
     const u = w.u[i][e];
     lines.push(`<div>capacity this week <b>${fq(u)}</b> of nominal ${fq(ed.u0)}${u != null && ed.u0 ? ` (${pct(u / ed.u0)})` : ''}</div>`);
@@ -611,14 +707,14 @@ function edgeTip(e) {
       const sv = N.slots[j], req = w.requested[i][j], exe = w.executed[i][j];
       const via = sv.lane != null ? ` <span class="m">via lane ${esc(N.lanes[sv.lane].id)}</span>` : '';
       const clip = req > exe * 1.001 + 1e-9 ? ` <span style="color:#fdba74">(asked ${fq(req)}, clipped)</span>` : '';
-      lines.push(`<div><span class="dot" style="color:${goodC(sv.k)};background:${goodC(sv.k)}"></span>${esc(goodN(sv.k))}: sent <b>${fq(exe)}</b>${clip}${via}</div>`);
+      lines.push(`<div>${goodTag(sv.k)}: sent <b>${fq(exe)}</b>${clip}${via} <span class="m">· plan ${fq(sv.plan)}</span></div>`);
     });
   } else if (slotsByEdge[e].length) lines.push('<div class="m" style="margin-top:4px">agent sent nothing here this week</div>');
   else lines.push('<div class="m" style="margin-top:4px">not a decision route (follows from the network)</div>');
   const tr = w.transit[i].filter((r) => r[0] === e);
   if (tr.length) {
     lines.push('<div style="margin-top:4px"><b>in transit on it</b></div>');
-    tr.slice(0, 6).forEach(([, k, , arr, q]) => lines.push(`<div><span class="dot" style="color:${goodC(k)};background:${goodC(k)}"></span>${esc(goodN(k))} ${fq(q)} · arrives wk ${arr}</div>`));
+    tr.slice(0, 6).forEach(([, k, , arr, q]) => lines.push(`<div>${goodTag(k)} ${fq(q)} · arrives wk ${arr}</div>`));
     if (tr.length > 6) lines.push(`<div class="m">… ${tr.length - 6} more</div>`);
   }
   return lines.join('');
@@ -626,7 +722,7 @@ function edgeTip(e) {
 
 function nodeTip(n) {
   const v = V[n], w = EP().weeks, i = S.t - 1, kd = KIND[v.type] || { label: v.type, c: '#94a3b8' };
-  const lines = [`<div class="t" style="color:${kd.c}">${esc(v.id)}</div><div class="m">${esc(kd.label)} · region ${esc(v.region)}</div>`];
+  const lines = [`<div class="t" style="color:${kd.c}">${kd.e || ''} ${esc(v.id)}</div><div class="m">${esc(kd.label)} · region ${esc(v.region)}</div>`];
   if (straitCol.has(n)) {
     const j = straitCol.get(n), o = w.open[i][j], idx = straitIdx(o);
     lines.push(`<div>open <b>${pct(o)}</b>${idx >= 0 ? badge(STRAIT[idx].label, STRAIT[idx].c) : ''}</div>`);
@@ -635,10 +731,10 @@ function nodeTip(n) {
   const st = stockByNode[n];
   if (st.length) {
     lines.push('<div style="margin-top:4px"><b>stock after this week</b></div>');
-    st.forEach(({ k, j }) => lines.push(`<div><span class="dot" style="color:${goodC(k)};background:${goodC(k)}"></span>${esc(goodN(k))}: ${fq(w.stock[i][j])}</div>`));
+    st.forEach(({ k, j }) => lines.push(`<div>${goodTag(k)}: ${fq(w.stock[i][j])}</div>`));
   }
   sinkIdx.filter((s) => s.n === n).forEach(({ k, j }) => {
-    lines.push(`<div style="margin-top:4px"><b>${esc(goodN(k))} demand</b> ${fq(w.demand[i][j])} · served ${fq(w.served[i][j])} · lost ${fq(w.lost[i][j])}</div>`);
+    lines.push(`<div style="margin-top:4px"><b>${goodTag(k)} demand</b> ${fq(w.demand[i][j])} · served ${fq(w.served[i][j])} · lost ${fq(w.lost[i][j])}</div>`);
   });
   demandIdx.filter((s) => s.n === n).forEach(({ j }) => { if (w.backlog[i][j] > 0) lines.push(`<div>backlog <b>${fq(w.backlog[i][j])}</b></div>`); });
   if (gridCol.has(n) && w.shed[i][gridCol.get(n)] > 0) lines.push(`<div style="color:#f87171">power shed ${fq(w.shed[i][gridCol.get(n)])}</div>`);
@@ -654,10 +750,19 @@ function focusNode(n) {
     EL.n[E[e].tail].g.classList.add('hl'); EL.n[E[e].head].g.classList.add('hl');
   });
 }
-function focusEdge(e) {
+function focusEdge(...es) {
   svg.classList.add('focus');
-  EL.e[e].g.classList.add('hl');
-  EL.n[E[e].tail].g.classList.add('hl'); EL.n[E[e].head].g.classList.add('hl');
+  es.forEach((e) => {
+    EL.e[e].g.classList.add('hl');
+    EL.n[E[e].tail].g.classList.add('hl'); EL.n[E[e].head].g.classList.add('hl');
+  });
+}
+function vehicleTip(e) {
+  const rows = EP().weeks.transit[S.t - 1].filter((r) => r[0] === e && shown(r[1]));
+  const tot = sum(rows.map((r) => r[4]));
+  return `<div class="t">${mode(e).e} ${fq(tot)} units on their way</div><div>${esc(edgeName(e))}</div>` +
+    rows.slice(0, 8).map(([, k, lane, arr, q]) => `<div>${goodTag(k)} ${fq(q)} · arrives wk ${arr}${lane >= 0 ? ` <span class="m">· lane ${esc(N.lanes[lane].id)}</span>` : ''}</div>`).join('') +
+    (rows.length > 8 ? `<div class="m">… ${rows.length - 8} more</div>` : '');
 }
 function unfocus() {
   svg.classList.remove('focus');
@@ -666,16 +771,14 @@ function unfocus() {
 let hovered = null;
 svg.addEventListener('pointerover', (ev) => {
   if (drag && drag.moved) return;
-  const eg = ev.target.closest('[data-e]'), ng = ev.target.closest('[data-n]'), dot = ev.target.dataset && ev.target.dataset.d;
-  const key = ng ? 'n' + ng.dataset.n : eg ? 'e' + eg.dataset.e : dot != null ? 'd' + dot : null;
+  const eg = ev.target.closest('[data-e]'), ng = ev.target.closest('[data-n]'), vg = ev.target.closest('[data-v]');
+  const key = ng ? 'n' + ng.dataset.n : eg ? 'e' + eg.dataset.e : vg ? 'v' + vg.dataset.v : null;
   if (key === hovered) return;
   unfocus(); hovered = key;
   if (ng) { focusNode(+ng.dataset.n); showTip(nodeTip(+ng.dataset.n), ev); }
   else if (eg) { focusEdge(+eg.dataset.e); showTip(edgeTip(+eg.dataset.e), ev); }
-  else if (dot != null) {
-    const r = EP().weeks.transit[S.t - 1][+dot];
-    if (r) showTip(`<div class="t" style="color:${goodC(r[1])}">${esc(goodN(r[1]))} · ${fq(r[4])} units</div><div>on ${esc(E[r[0]].id)} (${esc(edgeName(r[0]))})</div><div class="m">arrives week ${r[3]}${r[2] >= 0 ? ` · lane ${esc(N.lanes[r[2]].id)}` : ''}</div>`, ev);
-  } else hideTip();
+  else if (vg) { focusEdge(+vg.dataset.v); showTip(vehicleTip(+vg.dataset.v), ev); }
+  else hideTip();
 });
 svg.addEventListener('pointermove', (ev) => { if (hovered && tip.style.display === 'block') showTip(tip.innerHTML, ev); });
 svg.addEventListener('pointerleave', () => { unfocus(); hovered = null; hideTip(); });
@@ -800,7 +903,7 @@ function buildNodePanel() {
   if (S.sel == null) { p.innerHTML = '<div class="hint">Click a node on the map to see its stock, demand and routes here.</div>'; return; }
   CHARTS = [];
   const n = S.sel, v = V[n], kd = KIND[v.type] || { c: '#94a3b8', label: v.type }, ep = EP(), w = ep.weeks;
-  let h = `<div class="nodehead">${swatch(v.type, kd.c, 26)}<div><div class="t">${esc(v.id)}</div><div class="s">${esc(kd.label)} · region ${esc(v.region)}</div></div></div>
+  let h = `<div class="nodehead">${emojiDot(v.type, 30)}<div><div class="t">${esc(v.id)}</div><div class="s">${esc(kd.label)} · region ${esc(v.region)}</div></div></div>
     <h3>Week <span class="wkn"></span></h3><div class="facts" id="node-facts"></div>`;
   const st = stockByNode[n];
   if (straitCol.has(n)) h += `<h3>Open fraction</h3><div id="c-open"></div><h3>Cargo queued</h3><div id="c-queue"></div>`;
@@ -961,36 +1064,119 @@ function buildLegend() {
   const kinds = KIND_ORDER.filter((k) => V.some((v) => v.type === k));
   const modes = Object.keys(MODE).filter((m) => E.some((e) => e.mode === m));
   const row = (sw, text, sub) => `<div class="row">${sw}<span>${esc(text)}${sub ? ` <span style="color:var(--dim)">· ${esc(sub)}</span>` : ''}</span></div>`;
+  const disc = (c) => `<span class="edot" style="width:18px;height:18px;font-size:11px;background:${c};border-color:${c}">🌊</span>`;
   let h = `<div class="head" id="lg-head"><span>Legend</span><span id="lg-arrow">▾</span></div><div class="body">`;
-  h += '<h4>Nodes</h4>' + kinds.map((k) => row(swatch(k, KIND[k].c), KIND[k].label, KIND[k].help)).join('');
-  h += '<h4>Routes (line style)</h4>' + modes.map((m) => row(lineSwatch('#aab3cc', MODE[m].dash, 1.6), MODE[m].label)).join('');
+  h += '<h4>Nodes</h4>' + kinds.map((k) => row(emojiDot(k, 20), KIND[k].label, KIND[k].help)).join('');
+  h += '<h4>Routes (line style)</h4>' + modes.map((m) => row(`<span class="lsw">${MODE[m].e}${lineSwatch('#aab3cc', MODE[m].dash, 1.6, 26)}</span>`, MODE[m].label)).join('');
   h += '<h4>Route state this week</h4>' + STATE.map((s) => row(lineSwatch(s.c, '', 2.2), s.label)).join('');
-  h += '<h4>Strait</h4>' + STRAIT.map((s) => row(swatch('chokepoint', s.c, 14), s.label)).join('');
-  h += '<h4>Goods (agent\'s shipments)</h4>' + N.goods.map((g, k) => row(lineSwatch(goodC(k), '', 4), goodN(k), N.units[g])).join('');
+  h += '<h4>Strait</h4>' + STRAIT.map((s) => row(disc(s.c), s.label)).join('');
+  h += `<h4>Goods <span style="text-transform:none;letter-spacing:0">· click one to show only it</span></h4><div id="lg-goods">` +
+    N.goods.map((g, k) => `<div class="row good${S.good === k ? ' pick' : ''}" data-good="${k}">${lineSwatch(goodC(k), '', 4, 22)}<span>${goodE(k)} ${esc(goodN(k))} <span style="color:var(--dim)">· ${esc(N.units[g] || '')}</span></span></div>`).join('') +
+    `</div>${S.good != null ? '<button id="lg-all" style="margin-top:4px">show all goods</button>' : ''}`;
   h += `<h4>Symbols</h4>` +
     row(`<svg width="30" height="12"><line x1="2" y1="6" x2="28" y2="6" stroke="#818cf8" stroke-width="7" stroke-linecap="round" opacity=".9"/></svg>`, 'thick coloured line', 'shipped this week; width = share of capacity') +
-    row(`<svg width="30" height="12"><circle cx="9" cy="6" r="3" fill="#38bdf8"/><circle cx="21" cy="6" r="5" fill="#38bdf8"/></svg>`, 'dots on a route', 'cargo in transit; size = amount, position = progress') +
+    row('<span class="lsw">🚢 ✈️</span>', 'cargo on its way', 'bigger = more units; along the route = progress') +
+    row(`<svg width="30" height="12"><line x1="2" y1="6" x2="28" y2="6" stroke="#46557a" stroke-width="1.3" opacity=".25"/></svg>`, 'faint route', 'idle this week (nothing sent, no cargo)') +
     row(`<svg width="30" height="12"><text x="0" y="10" fill="#fdba74" font-size="9" font-weight="700">queue</text></svg>`, 'cargo queued at a strait') +
     row(`<svg width="30" height="12"><text x="0" y="10" fill="#f87171" font-size="10" font-weight="700">80%</text></svg>`, 'share of demand served', 'markets') +
     row(`<svg width="30" height="12"><text x="0" y="10" fill="#f87171" font-size="9" font-weight="700">shed</text></svg>`, 'power shed', 'grids');
-  h += `<div class="note">Hover anything for details. Wheel = zoom, drag = pan, double-click = fit. Keys: ← → weeks, space play, N next event.</div></div>`;
+  h += `<div class="note">Hover anything for details. Drag a node to move it. Wheel = zoom, drag the background = pan, double-click = fit. Keys: ← → weeks, space play, N next event, A actions.</div></div>`;
+  const closed = $('#legend').classList.contains('closed');
   $('#legend').innerHTML = h;
   $('#lg-head').onclick = () => { $('#legend').classList.toggle('closed'); $('#lg-arrow').textContent = $('#legend').classList.contains('closed') ? '▸' : '▾'; fit(); };
-  if (innerWidth < 980) $('#legend').classList.add('closed');
+  $('#lg-goods').onclick = (ev) => { const r = ev.target.closest('[data-good]'); if (r) setGood(+r.dataset.good === S.good ? null : +r.dataset.good); };
+  if ($('#lg-all')) $('#lg-all').onclick = () => setGood(null);
+  if (closed) { $('#legend').classList.add('closed'); $('#lg-arrow').textContent = '▸'; }
+}
+function setGood(k) {
+  S.good = k;
+  buildLegend();
+  renderMap();
+  if (S.actions) renderActions();
 }
 
 function buildControls() {
-  const items = [['flow', 'Shipments'], ['transit', 'In transit'], ['cap', 'Capacities'], ['names', 'Names']];
-  $('#ctl').innerHTML = items.map(([k, l]) => `<button data-k="${k}" class="${S.show[k] ? 'on' : ''}">${l}</button>`).join('') + '<button id="b-fit">⤢ Fit view</button>';
+  const items = [['flow', 'Shipments'], ['transit', 'In transit 🚢'], ['idle', 'Fade idle routes'], ['cap', 'Capacities'], ['names', 'Names']];
+  $('#ctl').innerHTML = items.map(([k, l]) => `<button data-k="${k}" class="${S.show[k] ? 'on' : ''}">${l}</button>`).join('') +
+    `<button id="b-actions" class="${S.actions ? 'on' : ''}" title="The agent's decisions this week (A)">📋 Actions</button><button id="b-fit">⤢ Fit view</button>` +
+    `<button id="b-reset" title="Put moved nodes back">↺ Reset layout</button>`;
   $('#ctl').onclick = (ev) => {
     const b = ev.target.closest('button');
     if (!b) return;
     if (b.id === 'b-fit') { fit(); return; }
+    if (b.id === 'b-reset') { resetLayout(); return; }
+    if (b.id === 'b-actions') { toggleActions(); return; }
     S.show[b.dataset.k] = !S.show[b.dataset.k];
     b.classList.toggle('on', S.show[b.dataset.k]);
     renderMap();
   };
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// the actions drawer: the agent's decisions of the week against the normal plan; built only while open
+
+function toggleActions(open = !S.actions) {
+  S.actions = open;
+  $('#actions').style.display = open ? 'flex' : 'none';
+  $('#b-actions').classList.toggle('on', open);
+  if (open) renderActions(); else $('#act-body').innerHTML = '';
+}
+function slotRoute(j) {
+  const s = N.slots[j];
+  if (s.lane == null) return `${mode(s.edge).e} ${esc(edgeName(s.edge))}`;
+  const L = N.lanes[s.lane], first = L.edges[0], last = L.edges[L.edges.length - 1];
+  const via = L.straits.map((n) => esc(V[n].id.replace(/^chk_?/, ''))).join(' → ');
+  return `${mode(first).e} ${esc(V[E[first].tail].id)} → ${esc(V[E[last].head].id)} <span class="m">via 🌊 ${via || 'lane'}</span>`;
+}
+const slotEdges = (j) => (N.slots[j].lane != null ? N.lanes[N.slots[j].lane].edges : [N.slots[j].edge]);
+function renderActions() {
+  const ep = EP(), w = ep.weeks, i = S.t - 1;
+  let rows = [], changed = 0, clipped = 0;
+  N.slots.forEach((s, j) => {
+    if (!shown(s.k)) return;
+    const asked = w.requested[i][j] || 0, sent = w.executed[i][j] || 0, plan = s.plan || 0;
+    if (asked <= 0 && sent <= 0 && plan <= 0) return;
+    const d = asked - plan, ch = Math.abs(d) > Math.max(0.01 * plan, 1e-6), cl = asked > sent * 1.001 + 1e-9;
+    changed += ch; clipped += cl;
+    rows.push({ j, s, asked, sent, plan, d, ch, cl });
+  });
+  const total = rows.length;
+  if (S.onlyChanged) rows = rows.filter((r) => r.ch);
+  if (S.onlyClipped) rows = rows.filter((r) => r.cl);
+  rows.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  $('#act-title').innerHTML = `📋 Agent's decisions · week ${S.t} <span class="m">· ${total} active · ${changed} differ from the normal plan · ${clipped} clipped${S.good != null ? ` · only ${goodE(S.good)} ${esc(goodN(S.good))}` : ''}</span>`;
+  let h = '';
+  if (ep.release) {
+    const notes = [];
+    N.release_pairs.forEach(([n, k], p) => {
+      const m = ep.release[i][p];
+      if (!m) return;
+      const qty = sum(N.override_slots.map(([c, kk], o) => (c === n && kk === k ? ep.override[i][o] : 0)));
+      notes.push(`🌊 ${esc(V[n].id)} · ${goodTag(k)}: ${m === 2 ? '<b>hold</b> the queued cargo' : `release <b>${fq(qty)}</b> (own quantities)`}`);
+    });
+    h += `<div class="act-rel"><b>Strait releases</b> ${notes.length ? notes.join(' · ') : '<span class="m">default rule everywhere this week</span>'}</div>`;
+  }
+  h += '<table><tr><th>route</th><th>good</th><th>asked</th><th>sent</th><th>normal plan</th><th>vs plan</th><th></th></tr>' +
+    rows.map((r) => `<tr data-j="${r.j}"><td>${slotRoute(r.j)}</td><td>${goodTag(r.s.k)}</td><td>${fq(r.asked)}</td><td>${fq(r.sent)}</td><td>${fq(r.plan)}</td>` +
+      `<td style="color:${!r.ch ? 'var(--dim)' : r.d > 0 ? '#38bdf8' : '#f472b6'}">${r.ch ? (r.d > 0 ? '+' : '−') + fq(Math.abs(r.d)) : '='}</td>` +
+      `<td>${r.cl ? '<span style="color:#fdba74">⚠ clipped</span>' : ''}</td></tr>`).join('') + '</table>';
+  if (!rows.length) h += '<div class="hint">no decision matches the filters this week</div>';
+  $('#act-body').innerHTML = h;
+}
+$('#act-body').addEventListener('pointerover', (ev) => {
+  const r = ev.target.closest('tr[data-j]');
+  unfocus();
+  if (r) focusEdge(...slotEdges(+r.dataset.j));
+});
+$('#act-body').addEventListener('pointerleave', unfocus);
+$('#act-filters').onclick = (ev) => {
+  const b = ev.target.closest('button[data-f]');
+  if (!b) return;
+  S[b.dataset.f] = !S[b.dataset.f];
+  b.classList.toggle('on', S[b.dataset.f]);
+  renderActions();
+};
+$('#act-close').onclick = () => toggleActions(false);
 
 function buildTicks() {
   const n = T(), box = $('#ticks');
@@ -1020,6 +1206,7 @@ function setWeek(t) {
   renderMap();
   renderBanner();
   updateSide();
+  if (S.actions) renderActions();
   if (hovered) hideTip();
 }
 function setEpisode(j) {
@@ -1065,6 +1252,7 @@ window.addEventListener('keydown', (ev) => {
   else if (ev.key === 'Home') setWeek(1);
   else if (ev.key === 'End') setWeek(T());
   else if (ev.key === 'n' || ev.key === 'N') nextEvent();
+  else if (ev.key === 'a' || ev.key === 'A') toggleActions();
 });
 let rz = null;
 window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { buildSide(); fit(); }, 200); });

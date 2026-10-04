@@ -117,12 +117,82 @@ def _alt(a) -> str | None:
     return ", ".join(f"{k} {v}" for k, v in a.items()) if isinstance(a, Mapping) else str(a)
 
 
+# columns left to right in the order goods travel; straits go to the gaps between them (``layout_positions``)
+KIND_COLUMN = {"source": 0, "terminal": 1, "grid": 2, "material": 2, "fab": 3, "osat": 4, "sink": 5}
+SWEEPS = 8  # barycenter passes of the crossing reduction
+
+
+def layout_positions(static: Mapping) -> list[tuple[float, float]]:
+    """Node positions (column, row): kinds on even columns, each strait in the gap next to its routes' median column,
+    and the order within each column by barycenter sweeps, the usual heuristic that cuts edge crossings.
+    """
+    types = list(static["nodes"]["type"])
+    n = len(types)
+    nbrs: list[set[int]] = [set() for _ in range(n)]
+    for a, b in zip(static["edges"]["tail"], static["edges"]["head"]):
+        if a != b:
+            nbrs[a].add(b)
+            nbrs[b].add(a)
+    present = sorted({KIND_COLUMN.get(t, 0) for t in types if t != "chokepoint"})
+    even = {c: 2 * i for i, c in enumerate(present)}  # absent kinds leave no gap
+    col = [even[KIND_COLUMN.get(t, 0)] if t != "chokepoint" else None for t in types]
+    last = max((c for c in col if c is not None), default=0)
+    for i in range(n):  # a strait sits in the odd gap column nearest the median column of its non-strait neighbours
+        if col[i] is None:
+            near = sorted(col[j] for j in nbrs[i] if col[j] is not None)
+            m = near[len(near) // 2] if near else 1
+            col[i] = min(max(1, 2 * round((m - 1) / 2) + 1), max(last - 1, 1))
+    columns: dict[int, list[int]] = {}
+    for i in range(n):
+        columns.setdefault(col[i], []).append(i)
+    row = [0.0] * n
+    tallest = max(len(v) for v in columns.values())
+
+    def place(c):  # centred; a short column spreads out (up to twice the step) to use the height of the tall ones
+        nodes = columns[c]
+        step = min(2.0, (tallest - 1) / max(len(nodes) - 1, 1)) if len(nodes) > 1 else 1.0
+        for r, i in enumerate(nodes):
+            row[i] = (r - (len(nodes) - 1) / 2) * max(step, 1.0)
+
+    for c in columns:
+        place(c)
+    order = sorted(columns)
+    for sweep in range(SWEEPS):
+        for c in order if sweep % 2 == 0 else order[::-1]:
+
+            def bary(i):
+                ys = [row[j] for j in nbrs[i] if col[j] != c]
+                return sum(ys) / len(ys) if ys else row[i]
+
+            columns[c] = sorted(columns[c], key=lambda i: (bary(i), row[i]))
+            place(c)
+    return [(float(col[i]), float(row[i])) for i in range(n)]
+
+
+def normal_plan(static: Mapping) -> list[float]:
+    """Each action slot's weekly quantity in the normal plan: the week-0 shipments of the initial pipeline."""
+    eid, lid, kid = static["edges"]["id"], static["lanes"]["id"], static["commodities"]["id"]
+    slots, lanes = static["action_slots"], static["lanes"]["edges"]
+    plan: dict[tuple, float] = {}
+    for p in static["instance"]["initial_state"]["pipeline"]:
+        if p["dispatch_week"] == 0:
+            key = (p["edge"], p["k"], p["lane"])
+            plan[key] = plan.get(key, 0.0) + float(p["qty"])
+    out = []
+    for e, k, lane in zip(slots["edge"], slots["k"], slots["lane"]):
+        first = lanes[lane][0] if lane is not None else e
+        out.append(plan.get((eid[first], kid[k], lid[lane] if lane is not None else None), 0.0))
+    return out
+
+
 def network(static: Mapping) -> dict:
     """The tables the map is drawn from: nodes with their positions, edges, lanes, slots, straits, goods."""
     layout = layout_tables(FlatLayout.from_static(static))
     types = list(static["nodes"]["type"])
-    pos = dashboard.positions(types)
+    pos = layout_positions(static)
     edges = static["edges"]
+    plan = normal_plan(static)
+    overrides = static.get("override_slots") or {}
     return {
         "nodes": [
             {
@@ -155,11 +225,13 @@ def network(static: Mapping) -> dict:
             for i, es, cs in zip(static["lanes"]["id"], static["lanes"]["edges"], static["lanes"]["chokepoints"])
         ],
         "slots": [
-            {"edge": e, "k": k, "lane": lane}
-            for e, k, lane in zip(
-                static["action_slots"]["edge"], static["action_slots"]["k"], static["action_slots"]["lane"]
+            {"edge": e, "k": k, "lane": lane, "plan": _num(q)}
+            for e, k, lane, q in zip(
+                static["action_slots"]["edge"], static["action_slots"]["k"], static["action_slots"]["lane"], plan
             )
         ],
+        "release_pairs": [list(p) for p in layout["release_pairs"]],
+        "override_slots": [list(p) for p in zip(*(overrides.get(c, []) for c in ("chokepoint", "k", "out_edge")))],
         "straits": list(layout["chokepoints"]),
         "stock_slots": [list(s) for s in layout["stock_slots"]],
         "demands": [list(d) for d in layout["demands"]],
@@ -212,6 +284,11 @@ def episode(record, label: str = "", eval_row: Mapping | None = None) -> dict:
             {k: e.get(k) for k in ("week", "signal", "subject", "before", "after", "note")} for e in rec["events"]
         ],
     }
+    action = rec.get("action", {})
+    release = np.asarray(action.get("release_mode", np.zeros((T, 0))))
+    if release.size and release.any():  # only when the agent took over a strait's release somewhere
+        out["release"] = release[:T].astype(int).tolist()
+        out["override"] = _nums(np.asarray(action.get("override_qty", np.zeros((T, 0))))[:T])
     if rec.get("naive"):
         out["naive"] = {
             "J": _usd(meta.get("naive_J_cents", -np.sum(rec["naive"]["reward_cents"])) / 100),

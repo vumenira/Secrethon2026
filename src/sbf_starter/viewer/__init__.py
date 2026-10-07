@@ -2,8 +2,9 @@
 
 The command evaluates the agent on the dev split (as ``sbf evaluate``), records a few telling episodes (its worst and
 best against the naive rule, and one where a strait closes) and writes one self-contained ``viewer.html``: data, CSS
-and JavaScript inline, no server, no network. Everything lands in ``outputs/view/<agent>_<task>/`` and is reused while
-the agent's files do not change, so a second run only rewrites the page.
+and JavaScript inline, no server, no network. The page's Scores tab shows the evaluation by harm level. Everything
+lands in ``outputs/view/<agent>_<task>/`` and is reused while the agent's files do not change, so a second run only
+rewrites the page.
 """
 
 from __future__ import annotations
@@ -61,7 +62,7 @@ def _picks(rows: list[dict], env, seed: int) -> list[tuple[int, str]]:
 
 def _page(data: dict) -> str:
     text = json.dumps(data, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
-    return PAGE.read_text().replace("/*__DATA__*/null", text, 1)
+    return PAGE.read_text(encoding="utf-8").replace("/*__DATA__*/null", text, 1)
 
 
 def view(
@@ -174,9 +175,10 @@ def view(
         "net": export.network(rec["static"]),
         "episodes": shown,
         "eval": {k: v for k, v in evaluation.items() if k != "episodes_arg"} if evaluation else None,
+        "stats": export.score_stats(evaluation) if evaluation else None,
     }
     page = folder / "viewer.html"
-    page.write_text(_page(data))
+    page.write_text(_page(data), encoding="utf-8")
     _say(f"written {page} ({page.stat().st_size / 1e6:.1f} MB): open it in a browser (xdg-open {page})")
     return page
 

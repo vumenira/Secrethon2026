@@ -54,7 +54,15 @@ packages = ["src/sbf_starter"]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-extend-exclude = ["agents/*/sbflow"]  # shockbench-flow's own code, copied by scripts/vendor_planner.py
+# agents/*/sbflow: shockbench-flow's own code, copied by scripts/vendor_planner.py. mpc_pulse_rec_v8_on and versions/:
+# the submitted agent and its earlier versions, kept byte for byte as they were played and uploaded (so `make lint`
+# does not rewrite them; they carry 8 known line-length findings). analysis/: research scripts kept as they were run.
+extend-exclude = [
+    "agents/*/sbflow",
+    "agents/mpc_pulse_rec_v8_on",
+    "experiments/pulse_agent/versions",
+    "experiments/pulse_agent/analysis",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

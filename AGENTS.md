@@ -36,12 +36,17 @@ itself is the `shockbench-flow` package from PyPI (`>= 0.1.2` in
 
 ```
 agents/<name>/     # one submission folder per agent: agent.py and the files it loads (weights are committed)
+                   #   ours: mpc_pulse_rec_v8_on (the agent to submit; SOLUTION.md), mpc_det_h20 (the baseline)
                    #   shipped: template (send the maximum), random, heuristic (reads params.json if present)
 examples/          # 01_quickstart.py ... 07_dashboard.py, each self-contained; ppo_agent.py is the PPO submission's agent.py
 src/sbf_starter/   # the `sbf` CLI (cli.py), scoring.py, check.py (isolated timed run), container.py (--docker),
                    #   codabench.py (token, upload, status), agents.py (names -> folders), play.py (closures)
                    #   viewer/ (`sbf view`: export.py turns a record into JSON, page.html draws it, one file)
-scripts/           # fields_docs.py: regenerates docs/fields/ from the installed shockbench-flow
+scripts/           # fields_docs.py: regenerates docs/fields/; vendor_planner.py: copies the package's planner into an
+                   #   agent's sbflow/; wsl_check.sh: `sbf check` under WSL on a Windows machine
+experiments/       # one write-up per approach (<name>.md or <name>/README.md) and its research code
+                   #   pulse_agent/: the log of the submitted agent, versions/ (earlier agents, runnable), analysis/
+                   #   approaches/: tune.py (paired comparison of variants on a root of our own), foresight.py, diag.py
 docs/              # GUIDE.md, fields/ (every observation and action field), img/
 tests/             # uv run pytest -n 3
 outputs/           # run folders outputs/<example>/<date_time>/ and packed zips (gitignored)

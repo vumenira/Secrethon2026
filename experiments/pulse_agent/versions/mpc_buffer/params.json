@@ -1,0 +1,8 @@
+{
+ "h_weeks": 20,
+ "end_value": 1.0,
+ "reserve_weeks": 4.0,
+ "reserve_price": 0.001,
+ "reserve_fuels": "all",
+ "shed_ramp": 0.002
+}

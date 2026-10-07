@@ -1,5 +1,7 @@
 # Our solution: the pulse agent
 
+Українською: [SOLUTION.uk.md](SOLUTION.uk.md)
+
 **The agent to submit is `agents/mpc_pulse_rec_v8_on`. It scores 0.8768 on the public board (Small).** It is the
 benchmark's own rolling LP planner with a handful of rules added, each found by measuring where the planner loses
 money. It has no learned parts, reads no warnings or announcements, and uses at most a quarter of the CPU limit.

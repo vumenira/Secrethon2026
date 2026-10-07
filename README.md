@@ -19,7 +19,7 @@ Our agents live in `agents/<name>/`, one folder each (`agent.py` and its files).
 ## Our agent
 
 **The agent to submit is `agents/mpc_pulse_rec_v8_on` (0.8768 on the public board).** What it does, why, how it was
-built and what did not work: **[SOLUTION.md](SOLUTION.md)**. The full log of every version and measurement is in
+built and what did not work: **[SOLUTION.md](SOLUTION.md)** (українською: [SOLUTION.uk.md](SOLUTION.uk.md)). The full log of every version and measurement is in
 [experiments/pulse_agent/README.md](experiments/pulse_agent/README.md).
 
 ---

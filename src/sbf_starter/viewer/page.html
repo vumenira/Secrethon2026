@@ -159,7 +159,7 @@ aside {
 
 /* side panel */
 .tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.tabs button { border: 0; border-radius: 8px 8px 0 0; background: transparent; color: var(--muted); padding: 7px 11px; }
+.tabs button { border: 0; border-radius: 8px 8px 0 0; background: transparent; color: var(--muted); padding: 7px 9px; }
 .tabs button.on { background: var(--panel2); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
 .panel { display: none; overflow: auto; padding: 12px 14px 18px; flex: 1; min-height: 0; }
 .panel.on { display: block; }
@@ -167,8 +167,8 @@ aside {
 .panel h3:first-child { margin-top: 0; }
 .chart { width: 100%; cursor: crosshair; }
 .chart svg { display: block; }
-.chart .ax { fill: var(--dim); font-size: 10px; }
-.chart .gl { stroke: rgba(128, 150, 214, 0.1); }
+.chart .ax, .plot .ax { fill: var(--dim); font-size: 10px; }
+.chart .gl, .plot .gl { stroke: rgba(128, 150, 214, 0.1); }
 .chart .cur { stroke: #fff; stroke-opacity: 0.55; stroke-dasharray: 3 3; }
 .keys { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 2px 0 6px; color: var(--muted); font-size: 11.5px; }
 .keys i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
@@ -194,6 +194,14 @@ tr.click:hover td { background: rgba(192, 132, 252, 0.1); }
 .nodehead { display: flex; align-items: center; gap: 10px; }
 .nodehead .t { font-size: 15px; font-weight: 650; }
 .nodehead .s { color: var(--muted); }
+.plot svg { display: block; }
+.plot .lb { fill: var(--muted); font-size: 11px; }
+.plot .val { fill: var(--text); font-size: 11px; }
+.plot .ref { stroke: var(--line2); }
+.plot .sd { stroke: #0a0e1c; stroke-width: 1.5; }
+.plot .sd.hot { stroke: #fff; }
+.keys i.round { border-radius: 50%; }
+.keys i.tick { width: 2px; border-radius: 1px; margin-left: 4px; }
 
 /* week bar */
 footer {
@@ -243,6 +251,7 @@ footer {
     <div class="panel" id="p-node"></div>
     <div class="panel" id="p-events"></div>
     <div class="panel" id="p-eps"></div>
+    <div class="panel" id="p-stats"></div>
   </aside>
 </main>
 <footer>
@@ -863,7 +872,7 @@ const cumsum = (a) => { let s = 0; return a.map((v) => (s += v || 0)); };
 // ---------------------------------------------------------------------------------------------------------------------
 // side panels
 
-const TABS = [['cost', 'Cost'], ['mix', 'Breakdown'], ['node', 'Node'], ['events', 'Events'], ['eps', 'Episodes']];
+const TABS = [['cost', 'Cost'], ['mix', 'Breakdown'], ['node', 'Node'], ['events', 'Events'], ['eps', 'Episodes'], ['stats', 'Scores']];
 function setTab(t) {
   S.tab = t;
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
@@ -873,7 +882,7 @@ function setTab(t) {
 
 function buildSide() {
   CHARTS = [];
-  ({ cost: buildCost, mix: buildMix, node: buildNodePanel, events: buildEvents, eps: buildEps })[S.tab]();
+  ({ cost: buildCost, mix: buildMix, node: buildNodePanel, events: buildEvents, eps: buildEps, stats: buildStats })[S.tab]();
   updateSide();
 }
 
@@ -990,6 +999,160 @@ function buildEps() {
 }
 function epList(recorded) {
   return '<h3>Recorded episodes</h3>' + D.episodes.map((e, j) => `<div><button data-j="${j}" class="${j === S.ep ? 'on' : ''}">episode ${e.episode}</button> ${esc(e.label)}</div>`).join('');
+}
+
+// the Scores tab: the evaluation by harm level (D.stats, the export's score_stats); nothing in it follows the week
+const sk2 = (x) => (x == null ? '–' : x.toFixed(2));
+const pt3 = (x) => (x == null ? '–' : x.toFixed(3));
+const C_EP = '#22d3ee', C_BELOW = '#ef4444', C_SCORE = '#e6e9f3';
+
+function buildStats() {
+  const p = $('#p-stats'), st = D.stats, ev = D.eval;
+  if (!st || !st.all) {
+    p.innerHTML = `<div class="hint">${st ? 'No episode of this evaluation has a clairvoyant cost, so none could be scored.'
+      : `No evaluation in this page (it was made with <code>--episode</code>). Run <code>uv run sbf view ${esc(D.agent)} --task=${esc(D.task)}</code> to evaluate.`}</div>`;
+    return;
+  }
+  const recorded = new Map(D.episodes.map((e, j) => [e.episode, j]));
+  const all = st.all, lines = [...st.levels, all], split = st.levels.length > 1;
+  const name = (l) => (l.level == null ? '<b>all</b>' : 'harm ' + l.level);
+  const sign = (x) => (x == null ? '' : x >= 0 ? 'pos' : 'neg');
+  const kpi = (l, v, c = '') => `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div></div>`;
+  const table = (head, row, rows = lines) => `<table><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr>${rows.map((l) => `<tr>${row(l).map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</table>`;
+  const worst = split ? st.levels.reduce((a, b) => ((b.missed ?? -Infinity) > (a.missed ?? -Infinity) ? b : a)) : null;
+  const top = st.episodes.filter((e) => e.missed != null).sort((a, b) => b.missed - a.missed).slice(0, 5);
+  p.innerHTML = `<h3>Evaluation${ev.quick ? ' (quick, not the board\'s numbers)' : ''}</h3>
+    <div class="mini">${kpi('score', pt3(all.score), sign(all.score))}${kpi('median episode skill', sk2(all.median), sign(all.median))}
+    ${kpi('episodes below naive', `${all.below} of ${all.n}`, all.below ? 'neg' : '')}${worst ? kpi('most points missed', `harm ${worst.level}: ${pt3(worst.missed)}`) : ''}</div>
+    <h3>Episode skill by harm level</h3>
+    <div class="keys"><span><i class="round" style="background:${C_EP}"></i>an episode</span><span><i class="round" style="background:${C_BELOW}"></i>below naive</span>
+      <span><i class="tick" style="background:${C_SCORE}"></i>the level's score</span><span>○ recorded: click</span></div><div id="s-strip"></div>
+    ${split ? `<h3>Points of the score by harm level</h3>${keys([[C_EP, 'earned'], ['rgba(34, 211, 238, 0.22)', 'missed']])}<div id="s-points"></div>` : ''}
+    <h3>Score by harm level</h3>${table(['harm', 'weight', 'eps', 'score', 'earned', 'missed'], (l) => [name(l),
+      l.weight != null ? Math.round(l.weight * 100) + '%' : l.level == null && st.pooled ? '100%' : '–', l.n, `<span class="${sign(l.score)}">${sk2(l.score)}</span>`, pt3(l.earned), pt3(l.missed)])}
+    <h3>Episode skill within a level</h3>${table(['harm', 'min', 'q1', 'median', 'q3', 'max', '&lt; naive'], (l) => [name(l), sk2(l.min), sk2(l.q1), sk2(l.median), sk2(l.q3), sk2(l.max), l.below])}
+    <h3>Mean saving per episode</h3>${table(['harm', 'saved', 'attainable', 'left'], (l) => [name(l), f$(l.saving), f$(l.attainable), f$(l.attainable - l.saving)])}
+    <h3>Episodes that miss the most points</h3><div id="s-top">${table(['ep', 'harm', 'skill', 'missed', 'left'], (e) => [e.episode + (recorded.has(e.episode) ? ' ●' : ''), e.level ?? '–',
+      `<span class="${sign(e.skill)}">${sk2(e.skill)}</span>`, pt3(e.missed), f$(e.attainable - e.saving)], top)}</div>
+    <p class="hint">skill: one episode's saving over the naive rule divided by the attainable saving (0 = naive rule, 1 = clairvoyant plan).
+    A level's score is the sum of its savings over the sum of its attainable savings: a costly episode counts for more, so it is not the mean of the dots.
+    Points: the earned points add up to the score, and a level's earned + missed is its share of the score. Missed points are where the score is still to be won.
+    ${st.pooled ? `The harm levels weigh ${st.weights.map((w) => Math.round(w * 100) + '%').join(', ')}, as on the board.` : 'Every episode counts alike here (no harm levels, or a level without an episode): not the board\'s weighting.'}
+    ${st.left_out.length ? `Left out, no clairvoyant cost: episode ${st.left_out.join(', ')}.` : ''}
+    ● = recorded in this page: click to open it. To record another: <code>uv run sbf view ${esc(D.agent)} --task=${esc(D.task)} --episode=N</code> (a page of that episode alone).</p>`;
+  stripPlot($('#s-strip'), st, recorded);
+  if (split) pointBars($('#s-points'), st);
+  p.querySelectorAll('#s-top tr').forEach((tr, i) => {
+    const j = i ? recorded.get(top[i - 1].episode) : null;
+    if (j == null) return;
+    tr.classList.add('click');
+    tr.classList.toggle('cur', j === S.ep);
+    tr.onclick = () => setEpisode(j);
+  });
+}
+
+function epTip(e, recorded) {
+  const r = D.eval.per_episode.find((q) => q.episode === e.episode);
+  return `<div class="t">episode ${e.episode}${e.level != null ? badge('harm ' + e.level, '#94a3b8') : ''}</div>
+    <div>skill <b>${sk2(e.skill)}</b> <span class="m">· saved ${f$(e.saving)} of ${f$(e.attainable)} attainable</span></div>
+    ${r ? `<div class="m">agent ${f$(r.J_policy_cents / 100)} · naive ${f$(r.J_naive_cents / 100)} · best ${f$(r.J_clairvoyant_cents / 100)}</div>` : ''}
+    <div class="m">points earned ${pt3(e.earned)} · missed ${pt3(e.missed)}</div>
+    <div class="m" style="margin-top:4px">${recorded.has(e.episode) ? 'recorded in this page: click to open it' : 'not recorded in this page'}</div>`;
+}
+
+// one row per harm level and one of all episodes: a dot per episode at its skill (stacked where they would overlap,
+// a triangle at the edge when it lies beyond the axis), a tick at the row's score
+function stripPlot(host, st, recorded) {
+  const lines = [...st.levels, st.all], seen = st.episodes.filter((e) => e.skill != null);
+  const W = Math.max(host.clientWidth || 360, 240), pl = 50, pr = 40, pt = 6, pb = 32, r = 4, step = 2 * r + 1;
+  const pw = W - pl - pr;
+  const lo = Math.max(Math.min(0, ...seen.map((e) => e.skill)), -1), hi = Math.min(Math.max(1, ...seen.map((e) => e.skill)), 1.5);
+  const m = (hi - lo) * 0.05;  // room for a dot at either end
+  const x = (v) => pl + ((clamp(v, lo, hi) - lo + m) / (hi - lo + 2 * m)) * pw;
+  const heights = lines.map((l) => clamp(16 + step * Math.ceil(l.n / 6), 34, 70));  // taller where more dots stack
+  const H = pt + sum(heights) + pb;
+  let s = `<svg width="${W}" height="${H}">`, y0 = pt, ticks = '';
+  [-1, -0.5, 0, 0.5, 1, 1.5].filter((v) => v >= lo - 1e-9 && v <= hi + 1e-9).forEach((v) => {
+    const xx = x(v).toFixed(1), ref = v === 0 || v === 1;
+    s += `<line class="${ref ? 'ref' : 'gl'}" x1="${xx}" x2="${xx}" y1="${pt}" y2="${H - pb}"/><text class="ax" x="${xx}" y="${H - pb + 12}" text-anchor="middle">${v}</text>`;
+    if (ref) s += `<text class="ax" x="${xx}" y="${H - pb + 24}" text-anchor="middle">${v ? 'clairvoyant' : 'naive'}</text>`;
+  });
+  const dots = [];
+  lines.forEach((l, i) => {
+    const h = heights[i], yc = y0 + h / 2, half = h / 2 - r - 2;
+    if (l.level == null && st.levels.length) s += `<line class="gl" x1="0" x2="${W}" y1="${y0}" y2="${y0}"/>`;
+    s += `<text class="lb" x="0" y="${(yc + 4).toFixed(1)}">${l.level == null ? 'all' : 'harm ' + l.level}</text>`;
+    if (l.score != null) {  // the tick goes over the dots, on a ring of the background's colour
+      const at = `x1="${x(l.score).toFixed(1)}" x2="${x(l.score).toFixed(1)}" y1="${(yc - 12).toFixed(1)}" y2="${(yc + 12).toFixed(1)}" stroke-linecap="round"`;
+      ticks += `<line ${at} stroke="#0a0e1c" stroke-width="5"/><line ${at} stroke="${C_SCORE}" stroke-width="2"/>`;
+      s += `<text class="val" x="${W - pr + 8}" y="${(yc + 4).toFixed(1)}">${sk2(l.score)}</text>`;
+    }
+    const placed = [];
+    seen.filter((e) => l.level == null || e.level === l.level).sort((a, b) => a.skill - b.skill).forEach((e) => {
+      const xx = x(e.skill);
+      let best = 0, least = Infinity;
+      for (let k = 0; k * step <= half; k++) for (const o of (k ? [-k * step, k * step] : [0])) {
+        const hits = placed.filter(([px, po]) => po === o && Math.abs(px - xx) < step).length;
+        if (hits < least) { least = hits; best = o; }
+      }
+      placed.push([xx, best]);
+      dots.push({ e, x: xx, y: yc + best });
+    });
+    y0 += h;
+  });
+  dots.forEach((d) => {
+    const c = d.e.saving < 0 ? C_BELOW : C_EP, cx = d.x.toFixed(1), cy = d.y.toFixed(1), out = d.e.skill < lo ? -1 : d.e.skill > hi ? 1 : 0;
+    if (recorded.has(d.e.episode)) s += `<circle cx="${cx}" cy="${cy}" r="${r + 3}" fill="none" stroke="${C_SCORE}" stroke-width="1.2"/>`;
+    s += out ? `<path class="sd" d="M${(d.x + out * (r + 2)).toFixed(1)},${cy}l${-out * 2 * (r + 1)},${-r - 1}v${2 * (r + 1)}z" fill="${c}"/>` : `<circle class="sd" cx="${cx}" cy="${cy}" r="${r}" fill="${c}"/>`;
+  });
+  host.innerHTML = s + ticks + '</svg>';
+  host.classList.add('plot');
+  const marks = host.querySelectorAll('.sd');
+  let hot = -1;
+  const near = (ev) => {  // the dot nearest the pointer, within 14 px
+    const b = host.getBoundingClientRect(), mx = ev.clientX - b.left, my = ev.clientY - b.top;
+    let best = -1, d2 = 14 * 14;
+    dots.forEach((d, j) => { const q = (d.x - mx) ** 2 + (d.y - my) ** 2; if (q < d2) { d2 = q; best = j; } });
+    return best;
+  };
+  const light = (j) => { if (hot >= 0) marks[hot].classList.remove('hot'); if (j >= 0) marks[j].classList.add('hot'); hot = j; };
+  host.onpointermove = (ev) => {
+    const j = near(ev);
+    if (j !== hot) light(j);
+    host.style.cursor = j >= 0 && recorded.has(dots[j].e.episode) ? 'pointer' : '';
+    if (j < 0) hideTip(); else showTip(epTip(dots[j].e, recorded), ev);
+  };
+  host.onpointerleave = () => { light(-1); hideTip(); };
+  host.onclick = (ev) => { const j = near(ev); if (j >= 0 && recorded.has(dots[j].e.episode)) { hideTip(); setEpisode(recorded.get(dots[j].e.episode)); } };
+}
+
+// per harm level, its share of the overall score as a track and the points it earned as the bar on it (red, to the
+// left of zero, when the level did worse than the naive rule)
+function pointBars(host, st) {
+  const ls = st.levels, W = Math.max(host.clientWidth || 360, 240), pl = 50, pr = 96, rh = 24, bh = 12;
+  const tot = (l) => (l.earned || 0) + (l.missed || 0);
+  const lo = Math.min(0, ...ls.map((l) => l.earned || 0)), hi = Math.max(...ls.map((l) => Math.max(l.earned || 0, tot(l)))) || 1;
+  const x = (v) => pl + ((v - lo) / (hi - lo)) * (W - pl - pr), f = (v) => v.toFixed(1);
+  let s = `<svg width="${W}" height="${ls.length * rh}">`;
+  ls.forEach((l, i) => {
+    const y = i * rh + (rh - bh) / 2, e = l.earned || 0;
+    s += `<g data-i="${i}"><rect x="0" y="${i * rh}" width="${W}" height="${rh}" fill="transparent"/><text class="lb" x="0" y="${y + bh - 2}">harm ${l.level}</text>` +
+      `<rect x="${f(x(0))}" y="${y}" width="${f(Math.max(0, x(tot(l)) - x(0)))}" height="${bh}" rx="3" fill="${C_EP}" fill-opacity=".22"/>` +
+      `<rect x="${f(x(Math.min(e, 0)))}" y="${y}" width="${f(Math.abs(x(e) - x(0)))}" height="${bh}" rx="3" fill="${e < 0 ? C_BELOW : C_EP}"/>` +
+      `<text class="val" x="${W - pr + 8}" y="${y + bh - 2}">${pt3(l.earned)} of ${pt3(tot(l))}</text></g>`;
+  });
+  host.innerHTML = s + `<line class="ref" x1="${f(x(0))}" x2="${f(x(0))}" y1="0" y2="${ls.length * rh}"/></svg>`;
+  host.classList.add('plot');
+  host.onpointermove = (ev) => {
+    const g = ev.target.closest('g[data-i]');
+    if (!g) { hideTip(); return; }
+    const l = ls[+g.dataset.i];
+    showTip(`<div class="t">harm ${l.level}${l.weight != null ? badge('weight ' + Math.round(l.weight * 100) + '%', '#94a3b8') : ''}</div>
+      <div>score <b>${sk2(l.score)}</b> <span class="m">· ${l.n} episode${l.n === 1 ? '' : 's'}, ${l.below} below naive</span></div>
+      <div class="m">points earned ${pt3(l.earned)} · missed ${pt3(l.missed)}</div>
+      <div class="m">mean saving ${f$(l.saving)} of ${f$(l.attainable)} attainable</div>`, ev);
+  };
+  host.onpointerleave = hideTip;
 }
 
 function updateSide() {

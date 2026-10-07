@@ -7,10 +7,12 @@ with the week's costs. Floats keep 4 significant digits; unobserved values are n
 """
 
 import math
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 from shockbench_flow.information.flat import FlatLayout
+from shockbench_flow.scoring.rss import STRATUM_WEIGHTS
 from shockbench_flow_agent.convert import layout_tables
 from shockbench_flow_gym import dashboard
 
@@ -298,3 +300,68 @@ def episode(record, label: str = "", eval_row: Mapping | None = None) -> dict:
     if eval_row:
         out["eval"] = dict(eval_row)
     return out
+
+
+def score_stats(evaluation: Mapping, weights: Sequence[float] = STRATUM_WEIGHTS) -> dict:
+    """An evaluation's episodes by harm level, for the page's Scores tab (``evaluation``: ``scoring.as_dict``'s).
+
+    An episode's *skill* is its saving over naive, g, over the attainable one, D (naive's cost minus clairvoyant's). A
+    level's *score* is the board's: the sum of its g over the sum of its D, so a costly episode counts for more than a
+    cheap one. *Points* split the overall score: an episode weighs p_s / N_s when the score pools the harm levels (all
+    alike when it does not), its earned points are its weighted g over the weighted sum of every D and its missed
+    points the same of D - g, so the earned points add up to the score and earned plus missed to 1. An episode without
+    a clairvoyant cost is left out, as the scorer leaves it out.
+    """
+    rows = evaluation["per_episode"]
+    kept = [r for r in rows if r["J_clairvoyant_cents"] is not None]
+    out = {"weights": list(weights), "left_out": [r["episode"] for r in rows if r["J_clairvoyant_cents"] is None]}
+    if not kept:
+        return out | {"pooled": False, "episodes": [], "levels": [], "all": None}
+    pooled = bool(evaluation.get("pooled")) and all(r["stratum"] is not None for r in kept)
+    count = Counter(r["stratum"] for r in kept)
+    w = np.array([weights[r["stratum"] - 1] / count[r["stratum"]] if pooled else 1 / len(kept) for r in kept])
+    g = np.array([r["J_naive_cents"] - r["J_policy_cents"] for r in kept], dtype=np.float64)
+    D = np.array([r["J_naive_cents"] - r["J_clairvoyant_cents"] for r in kept], dtype=np.float64)
+    den = float(w @ D)
+
+    def share(x) -> float | None:  # of the overall score's denominator
+        return _num(x / den) if den > 0 else None
+
+    def line(level: int | None, idx: np.ndarray) -> dict:
+        skill = g[idx][D[idx] > 0] / D[idx][D[idx] > 0]
+        low, q1, median, q3, high = np.percentile(skill, [0, 25, 50, 75, 100]) if skill.size else [math.nan] * 5
+        return {
+            "level": level,
+            "weight": weights[level - 1] if pooled and level is not None else None,
+            "n": int(idx.size),
+            "score": _num(w[idx] @ g[idx] / (w[idx] @ D[idx])) if w[idx] @ D[idx] > 0 else None,
+            "earned": share(w[idx] @ g[idx]),
+            "missed": share(w[idx] @ (D[idx] - g[idx])),
+            "saving": _usd(g[idx].mean() / 100),
+            "attainable": _usd(D[idx].mean() / 100),
+            "below": int((g[idx] < 0).sum()),
+            "min": _num(low),
+            "q1": _num(q1),
+            "median": _num(median),
+            "q3": _num(q3),
+            "max": _num(high),
+        }
+
+    strata = np.array([-1 if r["stratum"] is None else r["stratum"] for r in kept])
+    return out | {
+        "pooled": pooled,
+        "episodes": [
+            {
+                "episode": r["episode"],
+                "level": r["stratum"],
+                "skill": _num(g[i] / D[i]) if D[i] > 0 else None,
+                "saving": _usd(g[i] / 100),
+                "attainable": _usd(D[i] / 100),
+                "earned": share(w[i] * g[i]),
+                "missed": share(w[i] * (D[i] - g[i])),
+            }
+            for i, r in enumerate(kept)
+        ],
+        "levels": [line(int(s), np.flatnonzero(strata == s)) for s in sorted(set(strata) - {-1})],
+        "all": line(None, np.arange(len(kept))),
+    }

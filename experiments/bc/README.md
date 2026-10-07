@@ -1,12 +1,13 @@
-# Behaviour cloning (BC) on Tiny
+# Behaviour cloning (BC)
 
 Hypothesis 1 of [../hypotheses.md](../hypotheses.md): a small network learns to copy a teacher that knows the whole
 episode in advance. The network sees only what an agent sees, so it learns "what the teacher does, on average, in
 situations that look like this one".
 
-**Result (2026-10-05):** the final model, **BC baseline v12** (`agents/bc_tiny_v12`), **ties the kit's `heuristic` on
-Tiny**. It's a little ahead on two of the three episode sets, but not significantly. It's the checkpoint new agents
-are compared against, and the starting point for Small.
+**Result (2026-10-05):** on Tiny, the final model, **BC baseline v12** (`agents/bc_tiny_v12`), **ties the kit's
+`heuristic`**. It's a little ahead on two of the three episode sets, but not significantly. It's the checkpoint new
+agents are compared against. The same recipe on **Small** (`agents/bc_small_v1`, 200 episodes) **beats heuristic**:
++0.07 on dev and +0.08 on fresh episodes, both significant.
 
 | Episode set                         | bc_tiny_v12 | heuristic | template | final minus heuristic (90 %) |
 | ----------------------------------- | ------------- | --------- | -------- | ---------------------------- |
@@ -15,6 +16,150 @@ are compared against, and the starting point for Small.
 | root 2026 (40, seen by no choice)   | **0.795**     | 0.779     | 0.723    | +0.02 (-0.02 to 0.05)        |
 
 Score: 0 = the naive rule, 1 = the clairvoyant oracle. `sbf check` passes: 3 ms of CPU per week (of 2 s), 392 KB.
+
+## The pipeline: scaled-up BC, on the laptop and the Windows PC (2026-10-07)
+
+### Why BC lost, and what the pipeline changes
+
+Preparation on Small (dev episodes; `sbf view` recordings and a per-place cost breakdown on 12 of them):
+
+| Small, 20 dev episodes | Score |
+| ---------------------- | ----- |
+| teacher C (a perfect copy of it) | 0.797 |
+| **`mpc_det_h20`** (the package's LP planner: plans 20 weeks on the network as observed, every week) | **0.712** |
+| `3rule_based` | 0.551 |
+| `bc_small_v1` | 0.469 |
+| heuristic | 0.400 |
+
+On Tiny the planner scores 0.916 on dev, against 0.78 for v12. Where `bc_small_v1` loses (bn USD per episode, 12 dev
+episodes):
+
+| | naive | oracle | bc_small_v1 | 3rule_based |
+| --- | --- | --- | --- | --- |
+| `sink_us` chip_le shortage | 623 | **362** | 594 | 592 |
+| `grid_kr` power shed | 345 | 157 | 186 | 167 |
+| `grid_tw` power shed | 239 | 98 | 137 | 118 |
+| lots started at `fab_tw_leading_1` (thousands) | 435 | **1,777** | 627 | 406 |
+| lots started at `fab_jp_memory_1` (thousands) | 386 | **1,242** | 278 | 258 |
+
+The grids are already close to the oracle. The money left is in the **chip chain**: wafers to the leading-edge fabs,
+raw chips to packaging, chips to `sink_us`. BC lifts plenty of wafers (9.5 M from `mat_jp`, more than the oracle's
+4.1 M) but doesn't get them to those fabs. That takes routing coordinated across the network, which a per-route copy
+can't do and a linear program does natively.
+
+So the pipeline trains, on far more data, two kinds of BC agent from the same dataset:
+
+- **plain BC:** v12's inputs, as before;
+- **BC + LP:** the same inputs plus the LP planner's plan for this week (its flow on each route, its release and hold
+  at each strait). The network learns to *correct the planner* toward the clairvoyant teacher. It is still behaviour
+  cloning, but it starts from the planner's coordination instead of rebuilding it route by route.
+
+Each BC + LP model also gives a **floor** candidate, with the same weights: it never ships or releases less than the
+planner's plan (run 7's lesson: shipping too little is the expensive mistake). Variants trained by default:
+
+| Candidate | LP input | "too little" weight (flows) | Network |
+| --------- | -------- | --------------------------- | ------- |
+| `plain_u4` | no | 4x | 3 x 128 |
+| `lp_u4`, `lp_u4_floor` | yes | 4x | 3 x 128 |
+| `lp_u2`, `lp_u2_floor` | yes | 2x | 3 x 128 |
+| `lp_u8`, `lp_u8_floor` | yes | 8x | 3 x 128 |
+| `lp_u4_big`, `lp_u4_big_floor` | yes | 4x | 4 x 256 |
+
+The best on fresh episodes (root 777) wins. It is then confirmed on dev and on root 999 against heuristic and
+`mpc_det_h20`, the bar to beat, and published.
+
+### What it does (`pipeline.py`)
+
+1. **collect:** teacher C plays training episodes of root 12345 (one exact play and one noisy play each). Every week
+   records the agent's inputs, LP plan included, and the teacher's answer. Saved in chunks, so a re-run resumes.
+2. **train:** every variant, on the GPU when PyTorch sees CUDA, otherwise on every CPU thread; stops early when the
+   held-out error stops improving.
+3. **select:** every candidate, `heuristic` and `mpc_det_h20` on 20 fresh episodes of root 777; the best is kept.
+4. **confirm:** the best on dev and on 20 episodes of root 999, never used to choose, with paired differences.
+5. **publish:** the best goes to `agents/bc_<task>_best/`; `outputs/bc/<run>/REPORT.md` and `results.json` hold every
+   number.
+
+Run the same command again and finished chunks and candidates are skipped. `--stages=...` runs any subset, and
+`uv run python experiments/bc/pipeline.py --help` lists every option.
+
+### On this laptop: Tiny
+
+```bash
+bash experiments/bc/run_tiny_laptop.sh        # 1.5 to 2 h; close the browser first (workers follow free memory)
+```
+
+It writes `agents/bc_tiny_best/` and `outputs/bc/tiny_laptop/REPORT.md`, then runs `sbf check`. The reference costs of
+Tiny's dev, root 777 and root 999 are already cached here.
+
+### On the Windows PC: Small
+
+Once:
+
+1. Install git and uv (PowerShell: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`).
+2. Clone the repository and `cd` into it. The agents `heuristic` and `mpc_det_h20` must be there, since they are the
+   baselines.
+3. Optional, saves about 40 min: copy this laptop's `~/.cache/shockbench-flow/` to `%USERPROFILE%\.cache\shockbench-flow\`
+   (Small's dev reference costs). Costs can differ in the last cents across CPU types; for comparisons that's
+   harmless.
+
+Then:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File experiments\bc\run_small_pc.ps1 -Cuda
+```
+
+`-Cuda` installs a CUDA 12.8 PyTorch for the RTX 5070 once (PyPI's Windows PyTorch has no CUDA) and trains on the
+GPU. Without it, training runs on the CPU.
+
+| Step | Time on the PC (estimate) |
+| ---- | ------------------------- |
+| collect: 14 workers, about 60 s per play each, stops after 2 h | about 800 episodes, 9 M rows |
+| train 5 variants | about 15 min with `-Cuda`, 2.5 to 3 h on the CPU |
+| select and confirm (reference costs of new episode sets: once) | about 1 h |
+| **total** | **about 3.5 h with `-Cuda`**, 5 to 6 h without |
+
+Measured on the laptop: one Small play takes 52 s with the LP inputs; the published agent passes `sbf check` on Small
+at 94 ms per week (0.64 s in week 1, of the 2 s budget). On Windows, pass comma lists in quotes, as
+`"--stages=select,confirm,publish"`. `sbf check` needs Linux: bring `agents\bc_small_best\` back to the laptop and run
+`uv run sbf check bc_small_best --task=small` before uploading.
+
+**Limit:** the weights fit the network they were trained on. The private board re-scores the same submission on Full,
+which needs Full weights, or one agent that picks weights by network.
+
+## Small: `agents/bc_small_v1` (2026-10-05)
+
+The v12 recipe on Small, the public board's network (52 weeks, 108 action slots, 22 release groups), with 10x fewer
+episodes to save time: **200 episodes** instead of 2,000. A Small episode holds 52 weeks x 108 routes, so 200 episodes
+still give 2.2 M flow rows, more than v12's 2.08 M on Tiny. **It clearly beats heuristic**, on dev and on fresh
+episodes:
+
+| Episode set            | bc_small_v1 | heuristic | template | v1 minus heuristic (90 %) |
+| ---------------------- | ----------- | --------- | -------- | ------------------------- |
+| dev (20)               | **0.469**   | 0.400     | 0.409    | **+0.069 (0.04 to 0.10)** |
+| root 999 (20, fresh)   | **0.521**   | 0.443     | 0.448    | **+0.078 (0.06 to 0.10)** |
+| teacher C (a perfect copy), dev | 0.797 |     |          |                           |
+
+By harm level (1 calm to 4 harmful): dev 0.40 / 0.50 / 0.57 / 0.52, root 999 0.46 / 0.52 / 0.63 / 0.69.
+`sbf check --task=small` passes: 17 ms of CPU per week (median), 41 ms in week 1, of the 2 s budget.
+
+- **Code:** v12's `agent.py` unchanged. On Small, each route has 51 inputs (8 goods) and each release group 35;
+  the release features read Small's dense queue table.
+- **Data:** episodes 0–199 of root 12345, 1 exact + 1 noisy play each. 398 of 400 plays were kept: in episodes 75
+  and 119 the teacher's linear program could not be solved (HiGHS "status not set", even after trying two other
+  methods), and those plays are skipped. Teacher C costs +9.0 % over the oracle on these episodes (Tiny: about +5 %).
+- **Cost:** one teacher episode takes 47 s alone (52 plans of about 0.9 s), about 76 s per worker with 7 in parallel.
+  Collection took 75 min with 7 workers (about 0.3 GB each), training 6 min. Teacher C on the 20 dev episodes,
+  measured first: 3.5 min.
+- **Room left:** v1 is at 0.47 to 0.52 where a perfect copy of its teacher scores 0.80. On Small the copy has much more
+  to gain than on Tiny, where heuristic was already close to the teacher.
+
+```bash
+uv run python experiments/bc/train_replan.py --agent=bc_small_v1 --task=small --episodes=200 --model=plain \
+    --layers=3 --hidden=128 --flow_under_weight=4 --workers=7
+uv run sbf compare bc_small_v1 heuristic --task=small
+```
+
+Train folder `outputs/bc/2026-10-05_18-27-55/`.
 
 ## BC baseline v12 (`agents/bc_tiny_v12`)
 
@@ -154,6 +299,10 @@ run folders named below exist only on the machine that made them. Each run's age
 | `replan_lib.py` | teacher C and the episode loop: someone plays (the teacher, with noise, or the student), the teacher labels every week; no PyTorch, so worker processes stay small |
 | `train_replan.py` | runs 4 to 12: collects teacher C's data on several processes (`--workers`), trains, optional DAgger rounds (`--dagger_rounds`); `--model classic/plain/shared`, `--layers`, `--hidden`, `--flow_under_weight`, `--dataset` (reuse), `--merge_with` |
 | `nets.py` | runs 9 to 12's networks: `plain` (an MLP of any depth) and `shared` (routes decide together, run 11), with the asymmetric loss |
+| `pipeline.py` | the scaled-up pipeline (2026-10-07): collect, train variants, select, confirm, publish; resumable; Linux and native Windows |
+| `run_tiny_laptop.sh`, `run_small_pc.ps1` | the pipeline's launchers: Tiny on the laptop, Small on the Windows PC |
+| `agent_template/` | the pipeline's agent code: v12 plus the optional LP-plan inputs and floor (`lp_planner.py`, `sbflow/`: the package's planner) |
+| `winsupport.py` | stand-ins for two Unix-only modules, so the scripts run on native Windows |
 | `train_bc.py` | runs 1 to 3: teacher A (the oracle's one plan, solved once per episode); also the training function of runs 4 to 8 |
 | `test_bc.py` | scores an agent and others on the same episodes, with a paired check against the first other |
 | `agents/bc_tiny*` | one folder per run (table below): `agent.py` and its `weights.npz` |
@@ -311,9 +460,10 @@ By harm level (1 calm to 4 most harmful), the final model scores: dev 0.69 / 0.8
 
 ## Next
 
-- **Small.** Start from v12's code (`agents/bc_tiny_v12/agent.py`; the same code as `bc_tiny_v9`). It
-  already runs on Small: the features read the network from the config, and the release features handle Small's
-  dense queue table. What's missing is teacher C's data on Small (52 weeks, bigger linear programs) and retraining.
-  First, time one teacher C episode on Small to size the run.
+- **Small, more of the same:** v1 used 200 episodes. Tiny gained from more data (runs 9 and 12), so 400 to 1,000
+  Small episodes is the obvious next run (about 75 min per 200 episodes with 7 workers).
+- **Full, the private board:** the private board re-scores the same submission on Full (395 slots, 104 weeks, 4 s
+  per week). The code runs there, but needs Full's weights: one agent with both, picked by feature count, or
+  trained on both. Teacher C on Full will be far slower: time one episode first.
 - Tune "ship more" (2x, 4x, 8x) and the release floor on a root of our own, not on dev.
 - DAgger again, with the ship-more loss or with the teacher's answers mixed into what is played (beta-DAgger).

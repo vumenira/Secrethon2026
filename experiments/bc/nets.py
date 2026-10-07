@@ -58,13 +58,30 @@ def _scaler(X, is_val):
     return mean.astype(np.float32), np.where(std < 1e-3, 1.0, std).astype(np.float32)
 
 
-def _fit(net, Xt, Yt, Xv, Yv, epochs, lr, batch, under_weight, label):
+def _evaluate(net, Xv, Yv, loss_fn, chunk=262_144):
+    """Loss and mean absolute error on the held-out rows, in chunks (a large set may not fit a GPU at once)."""
+    loss_sum = abs_sum = 0.0
+    with torch.no_grad():
+        for i in range(0, len(Xv), chunk):
+            pred, y = net(Xv[i : i + chunk]), Yv[i : i + chunk]
+            loss_sum += loss_fn(pred, y).item() * len(y)
+            abs_sum += (pred.clamp(min=0) - y).abs().sum().item()
+    n = max(len(Xv), 1)
+    return loss_sum / n, abs_sum / (n * (Yv[0].numel() if len(Yv) else 1))
+
+
+def _fit(net, Xt, Yt, Xv, Yv, epochs, lr, batch, under_weight, label, patience=None):
+    """Adam on the training rows; keeps the epoch with the best held-out loss; stops after ``patience`` epochs
+    without improvement (None: never)."""
+    if len(Xt) == 0 or len(Xv) == 0:
+        raise ValueError("training needs at least 2 episodes: some to learn from, some held out")
     opt = torch.optim.Adam(net.parameters(), lr=lr)
     loss_fn = _loss(under_weight)
-    best, best_state, history = float("inf"), None, []
+    best, best_state, history, since_best = float("inf"), None, [], 0
+    device = next(net.parameters()).device
     for epoch in range(1, epochs + 1):
         net.train()
-        order = torch.randperm(len(Xt))
+        order = torch.randperm(len(Xt), device=device)
         total = 0.0
         for i in range(0, len(Xt), batch):
             idx = order[i : i + batch]
@@ -74,35 +91,53 @@ def _fit(net, Xt, Yt, Xv, Yv, epochs, lr, batch, under_weight, label):
             opt.step()
             total += loss.item() * len(idx)
         net.eval()
-        with torch.no_grad():
-            pred = net(Xv)
-            val = loss_fn(pred, Yv).item()
-            val_mae = (pred.clamp(min=0) - Yv).abs().mean().item()
+        val, val_mae = _evaluate(net, Xv, Yv, loss_fn)
         history.append({"epoch": epoch, "train_loss": total / len(Xt), "val_loss": val, "val_mae": val_mae})
         marker = ""
+        since_best += 1
         if val < best:
-            best, marker = val, "  <- best so far"
+            best, marker, since_best = val, "  <- best so far", 0
             best_state = {k: v.clone() for k, v in net.state_dict().items()}
         print(
             f"  {label} epoch {epoch:3d}  train {total / len(Xt):.4f}  validation {val:.4f}  "
             f"(mean error {val_mae:.3f} x capacity){marker}",
             flush=True,
         )
+        if patience is not None and since_best >= patience:
+            print(f"  {label}: no better held-out loss for {patience} epochs, stopping", flush=True)
+            break
     net.load_state_dict(best_state)
     return history
 
 
-def train_plain(X, Y, episode, val_episodes, *, module, hidden, layers, epochs, lr, batch, seed, under_weight, label):
-    """A plain MLP on rows (features -> share); its numpy arrays and history."""
+def train_plain(
+    X,
+    Y,
+    episode,
+    val_episodes,
+    *,
+    module,
+    hidden,
+    layers,
+    epochs,
+    lr,
+    batch,
+    seed,
+    under_weight,
+    label,
+    device="cpu",
+    patience=None,
+):
+    """A plain MLP on rows (features -> share); its numpy arrays and history. ``device``: "cpu" or "cuda"."""
     torch.manual_seed(seed)
     is_val = np.isin(episode, val_episodes)  # whole episodes held out, so validation is honest
     mean, std = _scaler(X, is_val)
-    t = lambda a: torch.tensor(a, dtype=torch.float32)  # noqa: E731
+    t = lambda a: torch.tensor(a, dtype=torch.float32, device=device)  # noqa: E731
     Xt, Yt = t(module.normalise(X[~is_val], mean, std)), t(Y[~is_val])
     Xv, Yv = t(module.normalise(X[is_val], mean, std)), t(Y[is_val])
-    net = mlp(X.shape[1], hidden, layers, 1)
+    net = mlp(X.shape[1], hidden, layers, 1).to(device)
     wrapped = torch.nn.Sequential(net, torch.nn.Flatten(0))  # (rows, 1) -> (rows,)
-    history = _fit(wrapped, Xt, Yt, Xv, Yv, epochs, lr, batch, under_weight, label)
+    history = _fit(wrapped, Xt, Yt, Xv, Yv, epochs, lr, batch, under_weight, label, patience)
     return {"mean": mean, "std": std, **mlp_arrays(net)}, history
 
 
@@ -131,6 +166,6 @@ def mlp_arrays(net: torch.nn.Sequential) -> dict:
     layers = [m for m in net if isinstance(m, torch.nn.Linear)]
     out = {}
     for i, layer in enumerate(layers, start=1):
-        out[f"W{i}"] = layer.weight.detach().numpy().T.astype(np.float32)
-        out[f"b{i}"] = layer.bias.detach().numpy().astype(np.float32)
+        out[f"W{i}"] = layer.weight.detach().cpu().numpy().T.astype(np.float32)
+        out[f"b{i}"] = layer.bias.detach().cpu().numpy().astype(np.float32)
     return out

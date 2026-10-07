@@ -25,3 +25,6 @@ __pycache__/
 
 # run folders and zips (the examples and `sbf pack` write here)
 /outputs/
+
+# created by experiments/bc/winsupport.py on Windows
+experiments/bc/_winstubs/

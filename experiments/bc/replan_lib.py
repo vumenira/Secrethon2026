@@ -15,6 +15,10 @@ No PyTorch here: worker processes import this module only, to keep their memory 
 import importlib.util
 from pathlib import Path
 
+import winsupport  # noqa: F401 - first: Windows stand-ins for two Unix-only modules (does nothing elsewhere)
+
+
+# isort: split
 import gymnasium as gym
 import numpy as np
 from shockbench_flow.hosting.tasks import scenario, task_generator
@@ -27,6 +31,7 @@ from sbf_starter import env_id
 
 
 ROOT = Path(__file__).resolve().parents[2]
+RETRY_METHODS = ("highs-ds", "highs")  # linprog methods tried when the default solve returns no point
 
 
 def load_agent_module(agent: str):
@@ -56,6 +61,7 @@ class Replanner:
         self.groups = release_groups(self.inst)
         self.rules = planning_rules
         self.solves = 0
+        self.retries = 0
 
     def window_arrays(self, t: int) -> dict:
         """The true weekly values of weeks t..T (every field the window LP reads)."""
@@ -81,6 +87,11 @@ class Replanner:
         model = self.model(wire_obs)
         result = solve_oracle(model)
         self.solves += 1
+        for method in RETRY_METHODS:  # a rare solve ends with no point (seen once on Small): try other methods
+            if result.x is not None:
+                break
+            result = solve_oracle(model, method=method)
+            self.retries += 1
         if result.x is None:
             raise RuntimeError(f"week {wire_obs['week']}: the teacher's LP was not solved ({result.message})")
         x, tmpl = result.x, model.meta["template"]  # tmpl: the week-1 column of each key
@@ -132,7 +143,12 @@ def run_episode(job: dict) -> dict:
     teacher = Replanner(job["task"], job["n"], job["entropy"], planning_rules=job.get("planning_rules", True))
     obs, info = env.reset(options={"episode": job["n"]})
     config = agent_config_from_reset(env, obs, info)
-    sf, rf = module.SlotFeatures(config), module.ReleaseFeatures(config)
+    sf = module.SlotFeatures(config)
+    rf = (
+        module.ReleaseFeatures(config, sf)
+        if getattr(module, "RELEASE_NEEDS_SLOTS", False)
+        else module.ReleaseFeatures(config)
+    )
     student = None
     if job["player"] == "student":
         module.WEIGHTS = job["weights"]
@@ -157,9 +173,18 @@ def run_episode(job: dict) -> dict:
         obs, _r, terminated, truncated, info = env.step(action)
         cents += int(info["reward_cents"])
         done = terminated or truncated
-    out = {"n": job["n"], "cost_usd": -cents / 100, "solves": teacher.solves}
+    out = {"n": job["n"], "copy": job.get("copy", 0), "cost_usd": -cents / 100, "solves": teacher.solves}
+    out["retries"] = teacher.retries
     if job.get("oracle"):  # the oracle's own cost of this episode, to measure how close the player came
         out["oracle_usd"] = float(solve_oracle(build_lp(teacher.inst, teacher.marks)).J_usd)
     if job["player"] != "none":
         out |= {"X": np.concatenate(X), "Y": np.concatenate(Y), "XR": np.concatenate(XR), "YR": np.concatenate(YR)}
     return out
+
+
+def run_episode_safe(job: dict) -> dict:
+    """``run_episode``, but an episode that fails returns {"n", "copy", "failed": the error} instead of raising."""
+    try:
+        return run_episode(job)
+    except Exception as error:  # noqa: BLE001 - one bad episode must not stop a run of hundreds
+        return {"n": job["n"], "copy": job.get("copy", 0), "failed": f"{type(error).__name__}: {error}"}

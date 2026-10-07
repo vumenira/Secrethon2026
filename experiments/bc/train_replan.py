@@ -34,10 +34,15 @@ def play(jobs: list[dict], workers: int, label: str) -> list[dict]:
     results, start = [], time.time()
     ctx = mp.get_context("spawn")  # fresh processes: they import replan_lib only (no torch)
     with ctx.Pool(workers) as pool:
-        for i, r in enumerate(pool.imap_unordered(R.run_episode, jobs), start=1):
+        for i, r in enumerate(pool.imap_unordered(R.run_episode_safe, jobs), start=1):
+            if "failed" in r:
+                print(f"  episode {r['n']} (play {r['copy']}) skipped: {r['failed']}", flush=True)
+                continue
             results.append(r)
             if i % 20 == 0 or i == len(jobs):
                 print(f"  {label}: {i}/{len(jobs)} episodes ({time.time() - start:.0f} s)", flush=True)
+    retries = sum(r.get("retries", 0) for r in results)
+    print(f"  {len(results)}/{len(jobs)} plays kept; {retries} LP solves needed a retry", flush=True)
     return sorted(results, key=lambda r: (r["n"], r.get("copy", 0)))
 
 

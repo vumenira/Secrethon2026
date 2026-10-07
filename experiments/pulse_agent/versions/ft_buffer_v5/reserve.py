@@ -1,0 +1,692 @@
+"""Three changes to the planner's window LP: a fuel reserve at grids, a ramp on shed load, and a window-end value.
+
+The planner (``sbflow``, the benchmark's ``mpc_det``) plans on "what I see now stays as it is", so it holds no fuel
+against events that have not started, it is indifferent to when a shortage it expects to last is taken, and it prices
+whatever is left when its window ends at the end-of-episode salvage price. The changes are added to the benchmark's own
+builder (``sbflow.oracle.lp._Builder``) just before it stacks the model, so ``sbflow/`` stays as vendored. They are
+columns, rows and entries of the planning rules' price table (``meta["priority"]``), which enters the objective only:
+the cost parts, the action mapping and the warm start (the same columns and rows in every window week) are untouched.
+
+The reserve (``reserve_weeks`` > 0). For a fuel k that a grid g burns, in every window week t:
+
+    I[g, k, t] + short[g, k, t] >= target[g, k, t],   short >= 0,   priced reserve_price * VOLL_g per unit-week
+
+- ``target = min(cover * shares[k] * deliverable_g, storage[g, k])``: ``cover`` weeks of the grid's full-rate burn of
+  the fuel (a fuel unit is one GWh; nominal values of the instance, never the week's impaired ones), with
+  ``cover = min(reserve_weeks, weeks of the episode after t)``, so nothing is asked for after the last week.
+- ``reserve_feeders``: the node that feeds the grid over a zero-lead edge (its terminal) holds the same fuel for it.
+  With the switch on, the cover the grid's own storage cannot hold is asked of those nodes, each up to its storage, so
+  ``reserve_weeks`` may exceed the grid's storage (about 4 weeks of burn).
+
+The ramp (``shed_ramp`` > 0). Shed base load of window week h is priced ``shed_ramp * VOLL_g * (H - h)`` above VOLL at
+every grid (H the window's weeks): shedding a week later is cheaper by ``shed_ramp * VOLL``, so of two plans that shed
+the same the planner takes the one that sheds later. It is also the reserve's guard. A price on low stock rewards a
+plan that sheds early and keeps the fuel when its forecast says the shortage lasts (a unit shed in week h instead of
+week h' > h saves h' - h weeks of the reserve's price), at the same grid, which the simulator decides, or at another
+grid by sending the fuel elsewhere, which the agent decides. With ``shed_ramp`` above ``reserve_price`` that never
+pays, and the reserve is filled only with fuel no grid would burn in the window.
+
+The end value (``end_value`` > 0), only while the window ends before the episode does. Goods at the window's end are
+credited ``end_value * v_k`` (the commodity's customs value) where that is above the salvage price the builder gives
+them: stock at nodes other than supply nodes and chokepoints, flows still in transit (times the strait's open share
+when they head for one), lots and OSAT starts still in process (at their input's value, as the builder's salvage).
+Queues at straits keep their salvage price, and so do the stocks the planning rules price (a fab's wafers, an OSAT's raw
+chips), which the simulator moves on by itself.
+
+Added in ``agents/ft_buffer`` (each off by default, so the model is ``agents/mpc_buffer``'s without them):
+
+- the shortfall premium (``short_premium`` > 0): a price on the builder's fuel shortfall column at grids with fabs,
+  ``Builder.add_short_premium``. Measured on Full with the pulse: +0.010.
+- the end value's options: ``end_value_fuel`` (another share for fuels, not measured), ``end_value_grids`` False (no
+  end value for fuel at grids or on its way to them: -0.18 on Full, the planner then runs the nuclear fuel down) and
+  ``end_value_wip`` "product" (a lot in process valued at its chip).
+- base load first in every window week (``base_first_weeks`` > 1), ``Builder.add_base_first``: -0.02 to -0.04 on
+  Full. It stops the plan from counting on fabs that get no energy, but it also prices unavoidable shedding far
+  above VOLL; ``pulse.py`` gets the fabs their energy instead.
+
+Added in ``agents/ft_buffer_v4`` (each off by default):
+
+- ``premium_small``: the premium of a fuel whose segment is smaller than the fabs' draw is per unit of that draw, not
+  of its own burn (it costs the fabs a unit of energy per unit short; it cannot stop them).
+- ``premium_limit`` (``Builder.add_free_short``): the premium is taken off the part of a fuel's shortfall that the
+  grid's scarcest fuel makes useless, so a plentiful fuel stops outbidding the scarce one on an edge they share. The
+  scarcest fuel is read off the window's start state (``Builder.fuel_cover``: stock at grid and terminal, lots
+  waiting at a strait, shipments under way, over ``cover_weeks``). It adds one column and one row per grid and fuel.
+- ``plan_duty`` (``Builder.add_duty``): from the window's second week the lots of a grid's fabs are bounded at the
+  share of capacity that cover allows. Measured: -0.001 alone on both tasks and -0.001 to -0.003 next to the other
+  two; left off.
+
+Added in ``agents/ft_buffer_v5`` (each off by default; all of it measured on root 12345 and left off):
+
+- ``duty_form`` "grid": ``plan_duty`` as one row per grid (the fabs' energy at most the duty times their full draw)
+  instead of a bound on each fab. The bound per fab is what cost ``plan_duty``: at a grid with two fabs the plan
+  gives a short grid's energy to one of them (the other gets few wafers and so asks for little), and the bound held
+  that fab at the grid's average. Next to v4's rules the bound per fab scores -0.0011 on Small and -0.0025 on Full,
+  the row per grid -0.0003 (90 % interval -0.0016 to +0.0009) and +0.0005 (-0.0009 to +0.0017): no loss, no gain.
+- the calendar (``plan_calendar``, ``Builder.add_calendar``): per grid and window week, the share of the fabs' full
+  draw the grid will have above its base load, read from the window arrays under ``CALENDAR_KEY`` (the agent puts
+  ``pulse.Pulse.forecast`` there). "energy" bounds the fabs' energy by a row per grid, "lots" each fab's lots.
+  ``calendar_load`` keeps the energy taken from the fabs in the grid's planned load (without it a fuel is worth less
+  at a pulsed grid and the plan sends it elsewhere), ``calendar_wafers`` drops the planning rules' price on wafers
+  that wait at a fab without energy, ``calendar_shed`` prices shed base load in ON weeks, ``calendar_weeks`` limits
+  how far ahead the calendar is told.
+- what the measurements say. The window's belief that every fab runs every week is what keeps wafers at idle fabs,
+  and the pulse counts a fab's draw by the wafers it holds: told the weeks a fab will not run, the plan stops its
+  wafers, and the pulse then never holds fuel for it. With the pulse's own forecast as calendar seven probed
+  episodes lost 0.03 to 0.05 of their gaps together; with the true duty in ``plan_duty`` eleven lost 0.02 to 0.03.
+  With the calendar of a finished play of v4 told for the whole window, the score falls by 0.0020 on Small and
+  0.0075 on Full, because the pulse's ON weeks move once the plan changes (a tenth of the grid-weeks on Full, and as
+  many again on a second pass). With that play's fuel deliveries replayed as well, so that the calendar stays
+  true, the gain is +0.0007 on Small (90 % interval -0.0010 to +0.0024, 64 episodes) and +0.0011 on Full (-0.0006
+  to +0.0026, 16 episodes): not worth the rows.
+"""
+
+from collections import defaultdict
+from dataclasses import dataclass, replace
+
+import numpy as np
+from sbflow.marks import fixed_fp_errors
+from sbflow.oracle.lp import _Builder
+from sbflow.policies import lp_common
+
+
+FUELS = ("all", "rationed")
+BASE_FIRST_PRICES = ("package", "tight")
+WIP_VALUES = ("input", "product")
+TIGHT_MARGIN = 1.05  # the "tight" base-first price is this times the most a unit of energy is worth at the grid's fabs
+DUTY_FORMS = ("fab", "grid")  # plan_duty as a bound on each fab's lots, or as one row on the grid's fab energy
+CALENDAR_MODES = ("off", "lots", "energy")  # no calendar; a bound on each fab's lots; a row on the grid's fab energy
+CALENDAR_SHED = ("off", "tight", "package")  # shed base load in the calendar's ON weeks: VOLL; a base-first price
+# the planning rules price wafers kept at a fab (the simulator starts every lot it can); under a calendar that price
+# is dropped in no week ("off"), in the weeks the fabs get no energy ("idle") or in every week short of ON ("short")
+CALENDAR_WAFERS = ("off", "idle", "short")
+ON_SHARE = 1.0 - 1e-6  # a window week counts as ON when the calendar gives the fabs at least this share of their draw
+CALENDAR_KEY = "fab_power"  # the window array that holds the calendar (the agent's forecast, ``window_calendar``)
+
+
+@dataclass(frozen=True)
+class Settings:
+    """The knobs of ``agent.PARAMS`` that this module reads, checked, with the week the window starts in."""
+
+    weeks: float  # reserve_weeks
+    price: float  # reserve_price
+    fuels: str  # reserve_fuels
+    feeders: bool  # reserve_feeders
+    ramp: float  # shed_ramp
+    end_value: float
+    week: int  # the episode week of the window's first week
+    T: int  # the episode's weeks
+    bf_weeks: int = 1  # base_first_weeks
+    bf_price: str = "package"  # base_first_price
+    ev_grids: bool = True  # end_value_grids
+    ev_wip: str = "input"  # end_value_wip
+    ev_fuel: float | None = None  # end_value_fuel
+    short_premium: float = 0.0
+    stock_early: float = 0.0
+    premium_small: bool = False
+    premium_limit: bool = False
+    plan_duty: bool = False
+    duty_form: str = "fab"  # how plan_duty bounds the plan: DUTY_FORMS
+    cover_weeks: float = 4.0
+    pulse: bool = False  # whether pulse.Pulse plays (it decides what a short fuel leaves the fabs)
+    payback: float = 0.0  # pulse_payback
+    plan_calendar: str = "off"  # how the calendar bounds the plan: CALENDAR_MODES
+    calendar_shed: str = "off"  # the price on shed base load in the calendar's ON weeks: CALENDAR_SHED
+    calendar_wafers: str = "off"  # the weeks a fab's kept wafers cost the plan nothing: CALENDAR_WAFERS
+    calendar_load: bool = False  # True: the energy the calendar takes from the fabs stays in the grid's planned load
+    # grid ordinal -> (H,) the share of its fabs' full draw the grid is expected to have above its base load in each
+    # window week (1: an ON week, 0: an OFF week); set by ``rolled_lp`` from ``window_calendar``, never from params
+    calendar: dict | None = None
+
+    @classmethod
+    def of(cls, params: dict, week: int, T: int) -> "Settings":
+        out = cls(
+            weeks=float(params["reserve_weeks"]),
+            price=float(params["reserve_price"]),
+            fuels=params["reserve_fuels"],
+            feeders=bool(params["reserve_feeders"]),
+            ramp=float(params["shed_ramp"]),
+            end_value=float(params["end_value"]),
+            week=int(week),
+            T=int(T),
+            bf_weeks=int(params.get("base_first_weeks", 1)),
+            bf_price=params.get("base_first_price", "package"),
+            ev_grids=bool(params.get("end_value_grids", True)),
+            ev_wip=params.get("end_value_wip", "input"),
+            ev_fuel=None if params.get("end_value_fuel") is None else float(params["end_value_fuel"]),
+            short_premium=float(params.get("short_premium", 0.0)),
+            stock_early=float(params.get("stock_early", 0.0)),
+            premium_small=bool(params.get("premium_small", False)),
+            premium_limit=bool(params.get("premium_limit", False)),
+            plan_duty=bool(params.get("plan_duty", False)),
+            duty_form=params.get("duty_form") or "fab",
+            cover_weeks=float(params.get("cover_weeks", 4.0)),
+            pulse=bool(params.get("pulse", False)),
+            payback=float(params.get("pulse_payback", 0.0)),
+            plan_calendar=params.get("plan_calendar") or "off",
+            calendar_shed=params.get("calendar_shed") or "off",
+            calendar_wafers=params.get("calendar_wafers") or "off",
+            calendar_load=bool(params.get("calendar_load", False)),
+        )
+        numbers = (out.weeks, out.price, out.ramp, out.end_value, out.bf_weeks, out.ev_fuel or 0.0, out.short_premium, out.stock_early)
+        if not all(np.isfinite(v) and v >= 0 for v in numbers) or out.fuels not in FUELS:
+            raise ValueError(f"reserve settings out of range: {out}")
+        if out.bf_price not in BASE_FIRST_PRICES or out.ev_wip not in WIP_VALUES:
+            raise ValueError(f"reserve settings out of range: {out}")
+        if out.plan_calendar not in CALENDAR_MODES or out.calendar_shed not in CALENDAR_SHED:
+            raise ValueError(f"reserve settings out of range: {out}")
+        if out.calendar_wafers not in CALENDAR_WAFERS or out.duty_form not in DUTY_FORMS:
+            raise ValueError(f"reserve settings out of range: {out}")
+        return out
+
+    @property
+    def reserve(self) -> bool:
+        return self.weeks > 0 and self.price > 0
+
+
+class Builder(_Builder):
+    """The benchmark's builder with the reserve, the ramp and the end value added before the model is stacked."""
+
+    def __init__(self, inst, marks, planning_rules: bool, settings: Settings) -> None:
+        super().__init__(inst, marks, planning_rules=planning_rules)
+        self.settings = settings
+
+    def finish(self):
+        st = self.settings
+        end_value = st.end_value > 0 and st.week + self.T - 1 < st.T  # the window ends before the episode does
+        base_first = st.bf_weeks > 1 and self.T > 1
+        calendar = st.plan_calendar != "off"
+        changed = st.reserve or st.ramp > 0 or end_value or base_first or st.short_premium > 0 or st.plan_duty
+        changed = changed or calendar
+        if changed:
+            if not self.rules:  # the builder keeps the price table only with the planning rules
+                raise ValueError("the reserve, the ramp and the end value are prices of the planning rules' table")
+            keys = list(self.cols.keys)  # the builder's own columns, before the reserve's
+            where = {key: j for j, key in enumerate(keys)}
+            ruled = frozenset(self.priority)  # the columns the planning rules price
+            if end_value:
+                self.add_end_value(keys, ruled)
+            if base_first:
+                self.add_base_first(where)
+            if st.short_premium > 0:
+                self.add_short_premium(where)
+            if end_value and st.stock_early > 0:
+                self.add_stock_early(where)
+            if st.plan_duty and self.T > 1:
+                self.add_duty(where)
+            if calendar:
+                self.add_calendar(where)
+            if st.ramp > 0:
+                self.add_ramp(where)
+            if st.reserve:
+                self.add_reserve(where)
+        model = super().finish()
+        model.meta["reserve"] = changed  # False: the model is the benchmark's own
+        return model
+
+    def add_price(self, j: int, price) -> None:
+        """Add ``price`` (a scalar or one value per window week) to column template ``j``'s entry of the table."""
+        self.priority[j] = np.asarray(self.priority.get(j, 0.0), dtype=float) + price
+
+    # ----- the reserve -----------------------------------------------------------------------------------------------
+    def reserve_targets(self) -> list[tuple[tuple, int, np.ndarray, float]]:
+        """(name, stock slot, target per window week, price per unit-week) of every soft minimum."""
+        inst, st = self.inst, self.settings
+        S, E = inst.stock_slots, inst.edges
+        left = st.T - (st.week + self.t - 1)  # weeks of the episode after each window week
+        cover = np.minimum(st.weeks, np.maximum(left, 0)).astype(float)
+        out = []
+        asked: dict[int, list] = {}  # feeder slot -> [target, the highest price of the grids it feeds]
+        for go, g in enumerate(inst.grids):
+            ga = inst.nodes[g].grid
+            price = st.price * ga.voll
+            for k in ga.fuels:
+                if st.fuels == "rationed" and k != ga.rationed:
+                    continue
+                s = self.slot(g, k, "grid fuel")
+                want = cover * ga.shares[k] * ga.deliverable
+                target = np.minimum(want, S[s].storage)
+                out.append((("reserve", go, k), s, target, price))
+                rest = want - target
+                if not st.feeders or not rest.any():
+                    continue
+                for e in inst.in_edges[g]:  # the cover its storage cannot hold, at the node that feeds it at once
+                    ed = E[e]
+                    if k not in ed.K or ed.tau != 0 or ed.tail in self.chk or ed.tail in self.supply:
+                        continue
+                    fs = inst.slot_index.get((ed.tail, k))
+                    if fs is None:
+                        continue
+                    entry = asked.setdefault(fs, [np.zeros(self.T), 0.0])
+                    entry[0] = entry[0] + rest
+                    entry[1] = max(entry[1], price)
+                    break  # one feeder per grid and fuel: the first in edge order
+        for fs, (target, price) in asked.items():
+            out.append((("reserve_feeder", fs), fs, np.minimum(target, S[fs].storage), price))
+        return out
+
+    def add_reserve(self, where: dict[tuple, int]) -> None:
+        """The soft minimum of every reserve slot (module docstring)."""
+        for name, s, target, price in self.reserve_targets():
+            j = self.cols.add(name)  # short: the stock missing below the target
+            self.priority[j] = price
+            r = self.ub.row(name, -target)  # -I - short <= -target
+            self.ub.add(r, where[("I", s)], -1.0)
+            self.ub.add(r, j, -1.0)
+
+    # ----- the ramp --------------------------------------------------------------------------------------------------
+    def add_ramp(self, where: dict[tuple, int]) -> None:
+        """Shed base load costs ``shed_ramp * VOLL`` more for every window week still to come (module docstring)."""
+        inst = self.inst
+        later = (self.T - self.t).astype(float)  # the window weeks after each week
+        for go, g in enumerate(inst.grids):
+            self.add_price(where[("ysh", go)], self.settings.ramp * inst.nodes[g].grid.voll * later)
+
+    # ----- what a fab's energy is worth ------------------------------------------------------------------------------
+    def chip_worth(self, go: int) -> list[tuple[float, float, float]]:
+        """(nominal lots per week, energy per lot, the most a chip is worth) of each fab of the grid that draws energy.
+
+        A chip is worth the largest shortage penalty of its packaged good, or its end value if that is more.
+        """
+        inst, share = self.inst, self.settings.end_value
+        packaged: dict[int, set[int]] = {}
+        for o in inst.osats:
+            for raw, pk in inst.nodes[o].osat.packages.items():
+                packaged.setdefault(raw, set()).add(pk)
+        out = []
+        for fo in inst.grid_fabs[go]:
+            fa = inst.nodes[inst.fabs[fo]].fab
+            if fa.e <= 0:
+                continue
+            goods = packaged.get(fa.product, set()) | {fa.product}
+            worth = max((d.pi * (self.T if d.backlog else 1) for d in inst.demands if d.k in goods), default=0.0)
+            out.append((fa.cap0, fa.e, max(worth, max(share * inst.commodities[k].v for k in goods))))
+        return out
+
+    def add_short_premium(self, where: dict[tuple, int]) -> None:
+        """Price a fuel segment's shortfall at a grid with fabs by the chips it costs when the fuel is pulsed.
+
+        With ``pulse.Pulse`` a grid short of a share s of a fuel's weekly burn runs whole in about 1 - s of the weeks,
+        so each unit short costs the grid's fabs 1 / burn of a week's chips, less the base load their energy would
+        have served: ``(chips per week - VOLL * the fabs' energy per week) / burn`` per unit, at nominal rates. The
+        planner's window counts the fabs as running on shed base load from its second week (it prices the shortfall
+        at VOLL only), so it does not care which grid a scarce fuel goes to; ``short_premium`` times that price on the
+        builder's shortfall column ("short", grid, fuel) says which grid loses most.
+        """
+        inst = self.inst
+        for go, g in enumerate(inst.grids):
+            ga = inst.nodes[g].grid
+            fabs = self.chip_worth(go)
+            gain = sum(lots * worth for lots, _e, worth in fabs) - ga.voll * sum(lots * e for lots, e, _w in fabs)
+            if ga.priority != "base_first" or gain <= 0:
+                continue
+            draw = sum(lots * e for lots, e, _w in fabs)  # the fabs' full draw per week
+            for k in ga.fuels:
+                j = where.get(("short", go, k))
+                burn = ga.shares[k] * ga.deliverable
+                if j is not None and burn > 0:
+                    # premium_small: a segment smaller than the fabs' draw costs them a unit of energy per unit
+                    # short (it cannot stop them), so a unit of it is worth the gain per unit of draw, not of burn
+                    per = max(burn, draw) if self.settings.premium_small else burn
+                    self.add_price(j, self.settings.short_premium * gain / per)
+                    if self.settings.premium_limit:
+                        self.add_free_short(go, k, j, self.settings.short_premium * gain / per, draw)
+
+    # ----- what the fuel at hand and under way covers --------------------------------------------------------------
+    def fuel_cover(self) -> dict[int, dict[int, float]]:
+        """Grid ordinal -> fuel -> the share of the fuel's full burn covered over the next ``cover_weeks`` weeks.
+
+        What counts: the stock at the grid and at the nodes that feed it over a zero-lead edge (its terminal), the
+        lots waiting at a strait for their last edge to one of them, and the shipments under way to them, each edge's
+        taken as a weekly rate (what is on the edge over its lead time). All of it is in the window's start state, so
+        it is this week's observation and nothing else. 1 means the fuel is not short as far as can be seen.
+        """
+        if getattr(self, "_cover", None) is not None:
+            return self._cover
+        inst, E, weeks = self.inst, self.inst.edges, max(self.settings.cover_weeks, 1.0)
+        held, rate = defaultdict(float), defaultdict(float)
+        for node, k, q in inst.initial_state.stock:
+            held[(node, k)] += q
+        for sh in inst.initial_state.pipeline:
+            rate[(E[sh.edge].head, sh.k)] += sh.qty / max(E[sh.edge].tau, 1)
+        for lot in inst.initial_state.queue_lots:
+            held[(E[lot.next_edge].head, lot.k)] += lot.qty
+        out = {}
+        for go, g in enumerate(inst.grids):
+            ga = inst.nodes[g].grid
+            cover = {}
+            for k in ga.fuels:
+                nodes = [g] + self.feeders(g, k)
+                burn = ga.shares[k] * float(self.marks.G_bar[0, go])
+                have = sum(held[(v, k)] + weeks * rate[(v, k)] for v in nodes)
+                cover[k] = 1.0 if burn <= 0 else min(1.0, have / (weeks * burn))
+            out[go] = cover
+        self._cover = out
+        return out
+
+    def feeders(self, g: int, k: int) -> list[int]:
+        """The nodes that feed grid ``g`` fuel ``k`` over a zero-lead edge and hold a stock of it (its terminal)."""
+        inst = self.inst
+        return [
+            inst.edges[e].tail
+            for e in inst.in_edges[g]
+            if k in inst.edges[e].K and inst.edges[e].tau == 0 and inst.edges[e].tail not in self.chk
+            and inst.edges[e].tail not in self.supply and (inst.edges[e].tail, k) in inst.slot_index
+        ]
+
+    def add_free_short(self, go: int, k: int, j_short: int, premium: float, draw: float) -> None:
+        """Take the premium off the part of fuel ``k``'s shortfall that the grid's scarcest fuel makes useless.
+
+        The fabs of a grid run in about the share of weeks its scarcest fuel covers (``fuel_cover``, among the fuels
+        whose segment is at least the fabs' draw). Another fuel delivered beyond that share powers no extra whole
+        week, yet the premium priced every unit of it, and a unit of a small segment dearly, so on an edge both fuels
+        share the plentiful fuel outbid the scarce one. A column ("free", grid, fuel), at most the fuel's shortfall
+        (a row) and at most ``(1 - least cover)`` of its burn (a bound), earns the premium back.
+        """
+        inst = self.inst
+        ga = inst.nodes[inst.grids[go]].grid
+        cover = self.fuel_cover()[go]
+        big = [f for f in ga.fuels if ga.shares[f] * ga.deliverable >= draw]
+        least = min((cover[f] for f in big), default=1.0)
+        spare = cover[k] > least + 1e-6  # not the scarcest fuel itself
+        allowance = (1.0 - least) * ga.shares[k] * self.marks.G_bar[:, go] if spare else np.zeros(self.T)
+        j = self.cols.add(("free", go, k), ub=np.maximum(allowance, 0.0))
+        self.priority[j] = -premium
+        r = self.ub.row(("free", go, k))  # free - short <= 0
+        self.ub.add(r, j, 1.0)
+        self.ub.add(r, j_short, -1.0)
+
+    # ----- the duty the pulse gives a grid's fabs --------------------------------------------------------------------
+    def duty(self, go: int) -> float:
+        """The share of its capacity that the fabs of grid ``go`` can expect to run over the next weeks.
+
+        From ``fuel_cover``: a fuel the pulse holds and delivers in whole weeks gives the fabs the share of weeks it
+        covers; a fuel smaller than the fabs' draw takes a unit of their energy per unit short; any other short fuel
+        (not held: no terminal, not worth a tank, or no pulse at all) leaves them what is left above the base load.
+        """
+        inst, st = self.inst, self.settings
+        g = inst.grids[go]
+        ga = inst.nodes[g].grid
+        fabs = self.chip_worth(go)
+        draw = sum(lots * e for lots, e, _w in fabs)
+        if draw <= 0 or ga.priority != "base_first":
+            return 1.0
+        cover = self.fuel_cover()[go]
+        packaged = defaultdict(set)
+        for o in inst.osats:
+            for raw, pk in inst.nodes[o].osat.packages.items():
+                packaged[raw].add(pk)
+        gain = 0.0  # as pulse.Pulse counts it: a whole week's chips at the shortage penalty less the base load
+        for fo in inst.grid_fabs[go]:
+            fa = inst.nodes[inst.fabs[fo]].fab
+            if fa.e > 0:
+                goods = packaged[fa.product] | {fa.product}
+                gain += fa.cap0 * (max((d.pi for d in inst.demands if d.k in goods), default=0.0) - ga.voll * fa.e)
+        room = max(float(self.marks.G_bar[0, go]) * sum(ga.shares.values()) - float(self.marks.y_bar[0, go]), 0.0)
+        duty = 1.0
+        for k in ga.fuels:
+            c, burn = cover[k], ga.shares[k] * ga.deliverable
+            if c >= 1.0 - 1e-9:
+                continue
+            if burn < draw:
+                duty *= max(0.0, 1.0 - (1.0 - c) * burn / draw)
+                continue
+            threshold = inst.params.psi * ga.ibar[k] if k == ga.rationed else 0.0
+            worth_it = st.payback <= 0 or (gain > 0 and (threshold + burn) * ga.voll <= st.payback * gain)
+            if st.pulse and self.feeders(g, k) and worth_it:
+                duty = min(duty, c)
+            else:
+                duty = min(duty, max(0.0, (room - (1.0 - c) * burn) / draw))
+        return float(min(max(duty, 0.0), 1.0))
+
+    def add_duty(self, where: dict[tuple, int]) -> None:
+        """Bound the lots of a grid's fabs from the window's second week at ``duty`` times their capacity.
+
+        The window runs a fab from its second week on at capacity (on shed base load), whatever the grid's fuel. The
+        pulse runs it in the share of weeks the scarcest fuel covers. With the bound the plan counts on the chips that
+        will be made, and plans wafers, the other fuels and the other fabs for them. It is a bound on the lot
+        columns, not a price on shed load; the first week keeps the builder's own rule. ``duty_form`` "grid" bounds
+        the energy of the grid's fabs together instead (a row per grid), so the plan may give it all to one fab.
+        """
+        inst = self.inst
+        later = self.t >= 2
+        for go in range(len(inst.grids)):
+            share = self.duty(go)
+            if self.settings.duty_form == "grid":
+                # one row per grid: the energy of its fabs at most the duty times their full draw, so the plan may
+                # still give the whole of it to one fab (the row is there whatever the duty: one shape every week)
+                fabs = [fo for fo in inst.grid_fabs[go] if inst.nodes[inst.fabs[fo]].fab.e > 0]
+                if not fabs or inst.nodes[inst.grids[go]].grid.priority != "base_first":
+                    continue
+                draw = np.zeros(self.T)
+                for fo in fabs:
+                    fa = inst.nodes[inst.fabs[fo]].fab
+                    draw = draw + fa.e * self.marks.alpha_bar[:, fo] * fa.cap0
+                r = self.ub.row(("duty", go), np.where(later, share, 1.0) * draw)
+                for fo in fabs:
+                    self.ub.add(r, where[("E", fo)], 1.0)
+                continue
+            if share >= 1.0 - 1e-6:
+                continue
+            for fo in inst.grid_fabs[go]:
+                j = where[("p", fo)]
+                ub = np.broadcast_to(np.asarray(self.cols.ub[j], dtype=float), (self.T,))
+                self.cols.ub[j] = np.where(later, ub * share, ub)
+
+    # ----- the weeks the fabs of a grid will run ---------------------------------------------------------------------
+    def add_calendar(self, where: dict[tuple, int]) -> None:
+        """Bound the fabs of each grid, from the window's second week, at what the calendar says the grid can power.
+
+        ``settings.calendar`` gives, per grid and window week, the share of the fabs' full draw the grid will have
+        above its base load (the simulator serves base load first): 1 in a week the grid runs whole, 0 in a week it
+        cannot. The window otherwise runs the fabs every week on shed base load, so it plans lots, wafers and chips
+        for weeks in which no lot will start. Two forms, the same columns and rows in every window week:
+
+        - "lots": the upper bound of each fab's lot column times the share (no row, no column);
+        - "energy": one row per grid with fabs, the energy of its fabs at most the share of their full draw at the
+          week's capacity, so the plan still chooses which of the grid's fabs gets a partial week's energy (the
+          simulator splits it by what each fab asks for, and a fab without wafers asks for nothing).
+
+        ``calendar_shed`` prices shed base load in the calendar's ON weeks (share 1) as ``add_base_first`` does, so
+        in those weeks the plan must bring the fuel for the fabs; OFF and partial weeks keep VOLL. ``calendar_load``
+        adds one column per grid, ("idle", grid): the energy the calendar took from the fabs, still drawn from the
+        grid and worth more than the base load it displaces, so the fuel side of the plan is the one without a
+        calendar. ``calendar_wafers`` takes the planning rules' price off wafers kept at a fab in the weeks it has
+        no energy ("idle") or less than its full draw ("short"). The window's first week keeps the builder's own
+        rule. A grid the calendar does not name is planned as before.
+        """
+        inst, st, T = self.inst, self.settings, self.T
+        calendar = st.calendar or {}
+        later = self.t >= 2
+        for go, g in enumerate(inst.grids):
+            ga = inst.nodes[g].grid
+            fabs = [fo for fo in inst.grid_fabs[go] if inst.nodes[inst.fabs[fo]].fab.e > 0]
+            if ga.priority != "base_first" or not fabs:
+                continue
+            share = np.ones(T)
+            if go in calendar:
+                given = np.asarray(calendar[go], dtype=float)[:T]
+                share[: len(given)] = np.clip(np.where(np.isfinite(given), given, 1.0), 0.0, 1.0)
+            share = np.where(later, share, 1.0)
+            if st.plan_calendar == "lots":
+                if go in calendar:
+                    for fo in fabs:
+                        j = where[("p", fo)]
+                        ub = np.broadcast_to(np.asarray(self.cols.ub[j], dtype=float), (T,))
+                        self.cols.ub[j] = ub * share
+            else:  # the row is there for every grid with fabs, whatever the calendar holds: one shape every week
+                draw = np.zeros(T)
+                for fo in fabs:
+                    fa = inst.nodes[inst.fabs[fo]].fab
+                    draw = draw + fa.e * self.marks.alpha_bar[:, fo] * fa.cap0  # e p / R at p = alpha R cap0
+                r = self.ub.row(("calendar", go), share * draw)
+                for fo in fabs:
+                    self.ub.add(r, where[("E", fo)], 1.0)
+            if st.calendar_load:
+                # the plan without a calendar powers the fabs every week, on shed base load where fuel is short, and
+                # that is what makes a unit of fuel at this grid worth VOLL and the shortfall premium in every week
+                # (under the pulse it is: held in an OFF week, it runs a later ON week). The energy the calendar
+                # takes from the fabs stays in the load as a column worth more than the base load it displaces.
+                taken = np.zeros(T)
+                for fo in fabs:
+                    fa = inst.nodes[inst.fabs[fo]].fab
+                    taken = taken + fa.e * self.marks.alpha_bar[:, fo] * fa.cap0
+                taken = taken * (1.0 - share)
+                reward = self.tight_price(go)
+                j = self.cols.add(("idle", go), ub=taken if reward > 0 else 0.0)
+                self.priority[j] = -(reward + ga.voll)
+                self.ub.add(self.ub.names.index(("energy", go)), j, 1.0)
+            if st.calendar_shed != "off" and go in calendar:
+                price = self.base_first_price(go) if st.calendar_shed == "package" else self.tight_price(go)
+                on = (later & (share >= ON_SHARE)).astype(float)
+                if price > 0 and on.any():
+                    self.add_price(where[("ysh", go)], price * on)
+            if st.calendar_wafers != "off" and go in calendar:
+                # a fab without energy starts no lot, so its wafers wait: not the plan's choice, and no price
+                waits = later & ((share <= 1.0 - ON_SHARE) if st.calendar_wafers == "idle" else (share < ON_SHARE))
+                for fo in fabs:
+                    f = inst.fabs[fo]
+                    k = inst.nodes[f].fab.input
+                    j = where[("I", self.slot(f, k, "fab input"))]
+                    if j in self.priority and waits.any():
+                        self.add_price(j, -inst.commodities[k].v * waits)
+
+    def add_stock_early(self, where: dict[tuple, int]) -> None:
+        """Make chips kept at their fab a little better than free to hold, so a plan builds that stock early.
+
+        With the end value a plan fills a fab's chip store for the credit at the window's end, and it does so with the
+        window's last lots, to save holding cost. A fab whose outlets are cut (it can ship less than it can make) is
+        therefore planned at its outlets' rate now and at capacity later, every week again, and never builds the stock
+        that could leave when the outlets recover. The price is ``-(1 + stock_early)`` times the slot's holding cost
+        per unit-week on the fab's product stock, only while the end value applies.
+        """
+        inst = self.inst
+        for f in inst.fabs:
+            s = self.slot(f, inst.nodes[f].fab.product, "fab product")
+            j = where.get(("I", s))
+            if j is not None:
+                self.add_price(j, -(1.0 + self.settings.stock_early) * inst.stock_slots[s].holding)
+
+    # ----- base load first in every window week ----------------------------------------------------------------------
+    def tight_price(self, go: int) -> float:
+        """The least price on shed base load, above VOLL, at which no plan sheds base load to power a fab of the grid.
+
+        ``TIGHT_MARGIN`` times the most a unit of energy is worth at the grid's fabs (a lot takes e_f of it and yields
+        at most one chip, ``chip_worth``), less VOLL; 0 when no fab of the grid draws energy or VOLL exceeds that.
+        """
+        best = max((worth / e for _lots, e, worth in self.chip_worth(go)), default=0.0)
+        return max(TIGHT_MARGIN * best - self.inst.nodes[self.inst.grids[go]].grid.voll, 0.0)
+
+    def add_base_first(self, where: dict[tuple, int]) -> None:
+        """Price shed base load at grids with fabs in window weeks 2..``base_first_weeks`` as the builder does in week 1.
+
+        The simulator serves base load before fabs at a ``base_first`` grid, every week. The builder's planning rules
+        say so in the window's first week only (a price on shed base load, ``_Builder.base_first_price``), so from week
+        2 on a plan may shed base load to power a fab, which never happens: the plan counts on chips from fabs that get
+        no energy, sends them wafers, and does not care which grid a fuel shortage falls on. With the price in every
+        week the plan runs a fab only on energy above the base load. ``base_first_price`` picks the price: "package",
+        the builder's own (the instance's largest shortage penalty over the grid's smallest e_f), or "tight"
+        (``tight_price``), which overprices unavoidable shedding the least. The first week keeps the builder's price.
+        """
+        inst, st = self.inst, self.settings
+        on = ((self.t >= 2) & (self.t <= st.bf_weeks)).astype(float)
+        for go, g in enumerate(inst.grids):
+            if inst.nodes[g].grid.priority != "base_first":
+                continue
+            price = self.base_first_price(go) if st.bf_price == "package" else self.tight_price(go)
+            if price > 0:
+                self.add_price(where[("ysh", go)], price * on)
+
+    # ----- the window's end ------------------------------------------------------------------------------------------
+    def add_end_value(self, keys: list[tuple], ruled: frozenset) -> None:
+        """Credit goods at the window's end ``end_value * v_k`` where that exceeds their salvage (module docstring).
+
+        ``end_value_grids`` False leaves fuel held at grids and flows into grids out (they keep the salvage price):
+        the grid's fuel is then the reserve's business. ``end_value_wip`` "product" values a lot in process at its
+        product (the raw chip) instead of its input (the wafer).
+        """
+        inst, marks, share, t, T = self.inst, self.marks, self.settings.end_value, self.t, self.T
+        K, S, E = inst.commodities, inst.stock_slots, inst.edges
+        grids = frozenset(() if self.settings.ev_grids else inst.grids)
+        fuels = frozenset(k for g in inst.grids for k in inst.nodes[g].grid.fuels)
+        fuel_share = share if self.settings.ev_fuel is None else self.settings.ev_fuel  # of a good some grid burns
+        last = (t == T).astype(float)
+        for j, key in enumerate(keys):
+            tag = key[0]
+            if tag == "I":
+                slot = S[key[1]]
+                if slot.node in self.supply or j in ruled or slot.node in grids:
+                    continue
+                gain, when = (fuel_share if slot.k in fuels else share) * K[slot.k].v - slot.salvage, last
+            elif tag == "x":
+                e, k = key[1], key[2]
+                ed = E[e]
+                if ed.head in self.supply or ed.head in grids:
+                    continue
+                gain = (fuel_share if k in fuels else share) * K[k].v - self.nu(ed.head, k, "arrival")
+                when = (t + ed.tau > T).astype(float)
+                if ed.head in self.chk:  # still short of a strait: worth what the strait lets through
+                    when = when * min(1.0, max(0.0, float(marks.o[T - 1, inst.chokepoint_ordinal[ed.head]])))
+            elif tag == "p":
+                fo = key[1]
+                fa = inst.nodes[inst.fabs[fo]].fab
+                nu = S[self.slot(inst.fabs[fo], fa.input, "fab input")].salvage
+                worth = K[fa.product if self.settings.ev_wip == "product" else fa.input].v
+                gain, when = share * worth - nu, (t + fa.tau > T) * (1.0 - marks.sigma_scr[:, fo])
+            elif tag == "xi":
+                oo, kp = key[1], key[2]
+                o = inst.osats[oo]
+                oa = inst.nodes[o].osat
+                kr = next(raw for raw, packaged in oa.packages.items() if packaged == kp)
+                gain = share * K[kr].v - S[self.slot(o, kr, "OSAT raw chip")].salvage
+                when = (t + oa.tau > T).astype(float)
+            else:
+                continue
+            if gain > 0:
+                self.add_price(j, -gain * when)
+
+
+@fixed_fp_errors
+def build_lp(inst, marks, settings: Settings, *, planning_rules: bool):
+    """``sbflow.oracle.lp.build_lp`` with ``Builder``: the same instance rung and the same checks (V3)."""
+    inst = inst.at_digest(marks.instance_digest)
+    if marks.instance_hash != inst.hash or marks.T != inst.T or marks.instance_digest != inst.content_digest:
+        raise ValueError("marks were computed for another instance or horizon (V3)")
+    return Builder(inst, marks, planning_rules, settings).build()
+
+
+def changes(model) -> bool:
+    """Whether ``model`` carries a reserve, a ramp or an end value (False: it is the benchmark's own model)."""
+    return bool(model.meta.get("reserve"))
+
+
+def window_calendar(inst, obs: dict, arrays, H: int, params: dict) -> dict | None:
+    """Grid ordinal -> (H,) the share of its fabs' draw the grid will have above base load in each window week.
+
+    Read from the window arrays, where the agent puts the pulse's forecast under ``CALENDAR_KEY`` (grid ordinal ->
+    a share per week, this week first). ``calendar_weeks`` keeps the forecast of that many weeks after the first
+    and plans the later ones ON. None: no calendar (the window is planned as without ``plan_calendar``).
+    """
+    power = arrays.get(CALENDAR_KEY) if hasattr(arrays, "get") else None
+    if not power:
+        return None
+    weeks = params.get("calendar_weeks")
+    out = {}
+    for go, series in power.items():
+        share = np.ones(H)
+        given = np.asarray(series, dtype=float)[:H]
+        share[: len(given)] = given
+        if weeks is not None:
+            share[int(weeks) + 1 :] = 1.0
+        out[int(go)] = share
+    return out
+
+
+def rolled_lp(inst, obs: dict, arrays, H: int, params: dict, *, planning_rules: bool):
+    """``lp_common.rolled_lp`` of week ``obs["week"]`` with the reserve, the ramp and the end value of ``params``."""
+    settings = Settings.of(params, int(obs["week"]), inst.T)
+    if settings.plan_calendar != "off":
+        settings = replace(settings, calendar=window_calendar(inst, obs, arrays, H, params))
+    inst_r, backlog = lp_common.rolled_window(inst, obs, H)
+    marks = lp_common.window_marks(inst_r, arrays, backlog)
+    return build_lp(inst_r, marks, settings, planning_rules=planning_rules)

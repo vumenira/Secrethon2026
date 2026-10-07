@@ -16,6 +16,12 @@ uv sync          # installs Python and the exact packages (see READMEOLD.md, "In
 
 Our agents live in `agents/<name>/`, one folder each (`agent.py` and its files).
 
+## Our agent
+
+**The agent to submit is `agents/mpc_pulse_rec_v8_on` (0.8768 on the public board).** What it does, why, how it was
+built and what did not work: **[SOLUTION.md](SOLUTION.md)**. The full log of every version and measurement is in
+[experiments/pulse_agent/README.md](experiments/pulse_agent/README.md).
+
 ---
 
 ## The episode viewer (`sbf view`)
@@ -131,6 +137,7 @@ Keys: `←` `→` weeks, `Space` play/pause, `Home` / `End`, `N` next event, `A`
 | **Node**      | the clicked node: stock over time, demand vs served (markets), open fraction and queue (straits), its routes this week |
 | **Events**    | the disruptions of this week, all events of the episode (click one to jump), early-warning scores     |
 | **Episodes**  | the evaluation: score, interval and every episode's result; click a recorded one (●) to open it       |
+| **Scores**    | the evaluation by harm level: every episode's skill as a dot, each level's score and weight, the points of the score each level earned and missed, and the episodes that miss the most |
 
 ### A typical workflow
 

@@ -2,7 +2,7 @@
 
 Українською: [SOLUTION.uk.md](SOLUTION.uk.md)
 
-**The agent to submit is `agents/mpc_pulse_rec_v8_on`. It scores 0.8768 on the public board (Small).** It is the
+**The agent to submit is `agents/mpc_pulse_rec_v9`. It scores 0.8827 on the public board (Small).** It is the
 benchmark's own rolling LP planner with a handful of rules added, each found by measuring where the planner loses
 money. It has no learned parts, reads no warnings or announcements, and uses at most a quarter of the CPU limit.
 
@@ -23,10 +23,11 @@ Each row adds to the one above. The two middle columns are local scores on episo
 | + wafer top-up, run-down before sales end | 0.844 | 0.871 | 0.8498 |
 | + a small fuel no longer blocks the pulse | 0.850 | 0.873 | 0.8577 |
 | + gas trimmed in slack weeks, unburnable fuel not shipped | 0.865 | 0.882 | 0.8714 |
-| + trim for other fuels, opening hold (the final agent) | 0.874 | 0.886 | 0.8768 |
+| + trim for other fuels, opening hold | 0.874 | 0.886 | 0.8768 |
+| + runs of full weeks start sooner and end cleanly (the final agent) | 0.877 | 0.894 | 0.8827 |
 
-- **The private board plays Full.** Locally the final agent scores 0.84 to 0.90 there depending on the episode set
-  (0.840, 0.865, 0.886, 0.896 on four sets), so expect about the same as on Small.
+- **The private board plays Full.** Locally the final agent scores 0.84 to 0.89 there depending on the episode set
+  (0.845, 0.870 and 0.894 on three sets), so expect about the same as on Small.
 - **No week fell back to the naive rule** in any upload or local play.
 - **CPU:** slowest week 0.22 s of 2 s on Small and 1.0 s of 4 s on Full (`sbf check` under Linux).
 
@@ -65,7 +66,8 @@ stays as observed, and sends the first week's flows. Around that:
 - **Smaller rules,** each worth up to about 0.01: a fab stops counting toward a pulse once its lots could not be sold
   before the episode ends; wafers are topped up at fabs that are about to get power; a fuel whose share is smaller
   than the fabs' draw does not block the pulse; a fuel reserve at grids; scarce fuel priced by the chips it costs; gas
-  held in weeks 2 to 4 at grids the first plan already expects to run short (helps on Small only).
+  held in weeks 2 to 4 at grids the first plan already expects to run short (helps on Small only); a run of full
+  weeks starts as soon as one can follow, and its last week is delivered only what it burns (helps most on Full).
 
 Every rule is a setting in `PARAMS` of `agent.py`, computed from the instance and the observation (no grid or fuel is
 named in code), and wrapped so that a failure falls back to the planner's own flows.
@@ -93,6 +95,8 @@ named in code), and wrapped so that a failure falls back to the planner's own fl
 | A longer window (24 to 40 weeks) | +0.03 without the window-end value, nothing with it, and it costs CPU |
 | Pricing "base load first" in every week of the LP | -0.02 to -0.04 |
 | Telling the planner which weeks the fabs will run | ceiling +0.001 |
+| Re-planning the pulse's whole schedule every week | +0.010 on Full with arrivals known in advance, zero or below from what the agent sees |
+| Predicting when a running event ends from anything but its type and age | nothing the agent observes carries it |
 | A premium on a grid's scarcest fuel only | no gain on fresh episodes |
 | Not sending chips into full packaging plants | -0.0001 |
 | Demand and throughput safety scales | +0.003 at most |
@@ -101,10 +105,10 @@ named in code), and wrapped so that a failure falls back to the planner's own fl
 
 ```bash
 uv sync
-uv run sbf evaluate mpc_pulse_rec_v8_on --task=small        # the 20 dev episodes
-uv run sbf compare mpc_pulse_rec_v8_on mpc_det_h20 --task=small
-uv run sbf check mpc_pulse_rec_v8_on --task=full            # needs Linux; on Windows use scripts/wsl_check.sh
-uv run sbf upload mpc_pulse_rec_v8_on --dry_run             # then without --dry_run: one of the day's 3 submissions
+uv run sbf evaluate mpc_pulse_rec_v9 --task=small        # the 20 dev episodes
+uv run sbf compare mpc_pulse_rec_v9 mpc_det_h20 --task=small
+uv run sbf check mpc_pulse_rec_v9 --task=full            # needs Linux; on Windows use scripts/wsl_check.sh
+uv run sbf upload mpc_pulse_rec_v9 --dry_run             # then without --dry_run: one of the day's 3 submissions
 ```
 
 On native Windows, `sbf evaluate` and `sbf compare` stop on a missing Unix module unless two stand-in files,
@@ -115,10 +119,10 @@ On native Windows, `sbf evaluate` and `sbf compare` stop on a missing Unix modul
 
 | Path | What |
 | --- | --- |
-| `agents/mpc_pulse_rec_v8_on/` | the final agent: `agent.py` (settings, glue), `pulse.py`, `reserve.py`, `recovery.py`, `sbflow/` (the vendored planner), `params.json` (switches the opening hold on) |
+| `agents/mpc_pulse_rec_v9/` | the final agent: `agent.py` (settings, glue), `pulse.py`, `reserve.py`, `recovery.py`, `sbflow/` (the vendored planner) |
 | `agents/mpc_det_h20/` | the baseline every comparison is against |
 | `experiments/pulse_agent/README.md` | the full log: every version, table and dropped idea |
-| `experiments/pulse_agent/versions/` | all 22 earlier versions, runnable, with an index |
+| `experiments/pulse_agent/versions/` | all 23 earlier versions, runnable, with an index |
 | `experiments/pulse_agent/analysis/` | the analysis scripts as they were run (a record, not a tool) |
 | `experiments/approaches/` | the eight ideas we started from and their outcomes; the harness `tune.py`, `foresight.py`, `diag.py` |
 | `scripts/wsl_check.sh` | `sbf check` under WSL for Windows machines |

@@ -1,6 +1,6 @@
 # Earlier versions of the pulse agent
 
-Every agent folder built on the way to `agents/mpc_pulse_rec_v8_on`, kept as it was played so that any number in
+Every agent folder built on the way to `agents/mpc_pulse_rec_v9`, kept as it was played so that any number in
 [../README.md](../README.md) can be replayed. None of these is the agent to submit.
 
 - **Each folder is a complete submission folder** (`agent.py`, its modules and its own copy of the vendored planner
@@ -22,7 +22,8 @@ public leaderboard.
 | `mpc_pulse_rec_v3` | wafer top-up at pulsed fabs; run-down before sales end | board 0.8498 |
 | `mpc_pulse_rec_v4` | a small fuel no longer blocks the pulse | board 0.8577 |
 | `mpc_pulse_rec_v6` | gas trimmed in slack weeks; unburnable fuel not shipped | board 0.8714 |
-| `agents/mpc_pulse_rec_v8_on` (the final agent, not in this folder) | trim for other fuels and a better forecast; opening hold | board 0.8768 |
+| `mpc_pulse_rec_v8_on` | trim for other fuels and a better forecast; opening hold (its `params.json` switches the hold on) | board 0.8768 |
+| `agents/mpc_pulse_rec_v9` (the final agent, not in this folder) | runs of full weeks start sooner and end cleanly | board 0.8827 |
 
 ## Steps between the uploads
 
@@ -30,7 +31,7 @@ public leaderboard.
 | --- | --- | --- |
 | `mpc_pulse_rec` | `ft_buffer` plus the recovery forecast, before the end-of-sales rule | fresh 0.8318 |
 | `mpc_pulse_rec_v7` | `mpc_pulse_rec_v6` plus the two trim rules, before the opening hold | fresh 0.8676 |
-| `mpc_pulse_rec_v8` | the final agent's code with the opening hold switched off; plays exactly as v7 | fresh 0.8676 |
+| `mpc_pulse_rec_v8` | the code of `mpc_pulse_rec_v8_on` with the opening hold switched off; plays exactly as v7 | fresh 0.8676 |
 | `ft_buffer_v2`, `_v3`, `_v4` | the pulse of v2, v3 and v4 without the recovery forecast; each has a `params.json` | tuning 0.8327, 0.8373, 0.8496 |
 | `ft_buffer_v5` | research on telling the planner which weeks the fabs run; plays as `ft_buffer_v4` | not a gain |
 

@@ -1,15 +1,15 @@
-# The pulse agent: every version and measurement (2026-10-06 to 2026-10-07)
+# The pulse agent: every version and measurement (2026-10-06 to 2026-10-08)
 
 This is the detailed log behind our agent. For the short version, read [SOLUTION.md](../../SOLUTION.md) first.
 
-- **The final agent is `agents/mpc_pulse_rec_v8_on`** (0.8768 on the public board). Every earlier version is kept,
+- **The final agent is `agents/mpc_pulse_rec_v9`** (0.8827 on the public board). Every earlier version is kept,
   runnable, under `versions/<name>` beside this file (`experiments/pulse_agent/versions/`); a version named below
   without a path is one of those folders.
 - **Part one** (down to "Risks and limits") describes the first version, `versions/ft_buffer`: the benchmark's rolling LP
   planner with a value for goods at the window's end, a fuel reserve at grids, a "pulse" that delivers scarce fuel in
   whole weeks so fabs can run, and a price that sends scarce fuel to the grid that loses most. It reads no warnings and
   no announcements and has no learned parts. Uploaded on 2026-10-06, it scored 0.8289.
-- **Part two** ("Later versions") adds one entry per version, v2 to v8, each with what it changed, what was measured
+- **Part two** ("Later versions") adds one entry per version, v2 to v9, each with what it changed, what was measured
   and what was dropped.
 - **The code explains itself** in module docstrings: `agent.py` (overview, every setting commented in `PARAMS`),
   `pulse.py` (the pulse and the rules after it), `reserve.py` (the LP changes, with formulas), `recovery.py` (the
@@ -165,7 +165,7 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   fab energy after week 13 is drawn in weeks when it sheds base load at that grid, so part of that gap is closed to any
   agent.
 
-## Later versions (v2 to v8, in the order they were built)
+## Later versions (v2 to v9, in the order they were built)
 
 - **v2, `versions/ft_buffer_v2`, confirmed:** one more rule, `pulse_tail` 0: a fab stops counting toward a pulse once a
   lot started now could not reach a sink before the episode ends (12 to 14 weeks). Against the uploaded agent:
@@ -359,7 +359,7 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
     short later and spends it later in whole weeks, because chips are in surplus early. A play test (gas held at the
     terminal in weeks 2 to 4 at grids where the planner's week-1 plan already expects a shortage) gained +0.0051 on
     Small (interval +0.0025 to +0.0079), untuned, on the tuning root only and with the grids picked by name.
-- **v8, `versions/mpc_pulse_rec_v8` (rule off) and `agents/mpc_pulse_rec_v8_on` (rule on):** the opening hold as a rule
+- **v8, `versions/mpc_pulse_rec_v8` (rule off) and `versions/mpc_pulse_rec_v8_on` (rule on):** the opening hold as a rule
   (`open_hold`). The episode's first plan decides: a grid is held in weeks 2 to 4 if the plan leaves its gas short by
   at least 0.1 of the segment over window weeks 4 to 12, the pulse can hold that gas, and no other short fuel can
   take all the fabs' energy (that last condition is what excludes the grid whose shortages are of crude, without
@@ -385,6 +385,54 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   smaller gain on Small than on the two roots, and again nothing on Full.
   **`mpc_pulse_rec_v8_on` uploaded on 2026-10-07: 0.8768 on the public board, no fallback week** (v7 alone was not
   uploaded).
+- **v9, `agents/mpc_pulse_rec_v9`, confirmed (2026-10-08):** how a run of whole weeks starts and ends. The plan was to
+  replace the pulse's timing rules with a schedule optimised each week; the ceiling was measured first, on Full.
+  - **A full scheduler is not worth building.** With the arrivals known in advance, the best schedule of each grid's
+    deliveries is worth +0.010 on Full. Re-solved each week from what the agent sees it is at or below zero (-0.0004,
+    -0.0015 and -0.0032 with three ways of forecasting arrivals): the planner's later weeks are intentions (it forecast
+    0.85 of a week's gas at one grid where 1.04 arrived, and wafers that never came), so the search sheds load ahead of
+    shortages that do not happen.
+  - **One part of the hindsight schedule needs no forecast,** and that is what was built, behind the switch
+    `schedule`. At a pulsed grid, for the rationed fuel: the last week of a run is delivered its burn alone, so the
+    stock that only serves to lift the rationing threshold waits at the terminal instead of burning for base load with
+    the fabs nearly idle; and the charge that starts a run is made as soon as one whole week can follow, without
+    waiting for four. It reads only the week's observation and the instance and has no setting to tune.
+
+  | Set | `mpc_pulse_rec_v8_on` (uploaded) | `mpc_pulse_rec_v9` | Difference (90 % interval) |
+  | --- | --- | --- | --- |
+  | Full 12345 (tuning) | 0.8651 | 0.8700 | +0.0050 (+0.0024 to +0.0075), 11 episodes better / 5 worse |
+  | Full 2026 (fresh) | 0.8863 | 0.8940 | +0.0078 (+0.0032 to +0.0131), 14 / 2 |
+  | Full 777 (fresh, 32 episodes) | 0.8402 | 0.8448 | +0.0046 (+0.0020 to +0.0073), 18 / 11 |
+  | Small 12345 (tuning) | 0.8760 | 0.8804 | +0.0044 (+0.0022 to +0.0065), 34 / 20 |
+  | Small 2026 (fresh) | 0.8741 | 0.8766 | +0.0025 (+0.0007 to +0.0043), 28 / 25 |
+
+  With the switch off it reproduces the uploaded agent to the cent on all 16 Full and all 64 Small episodes. One
+  setting was scored, once per set. On Full 2026 one episode carries half the gain (+0.0032 without the two best).
+  Where it loses: at a grid whose threshold exceeds a week's burn every short run wastes part of the gas, and when
+  arrivals collapse right after a charge the tank is spent on partly powered weeks. Two refinements follow from that
+  (charge at once only where the threshold is no more than a week's burn, and only when the wafers are there); they
+  were not built, because the rule was fixed before the fresh sets were played. `sbf check mpc_pulse_rec_v9` passes
+  under Ubuntu: slowest week 0.22 s of 2 s on Small, 1.01 s of 4 s on Full.
+  **Uploaded on 2026-10-08: 0.8827 on the public board, no fallback week.**
+- **Can event ends be predicted better? No (analysis of 2026-10-08, nothing built).** The forecast uses an event's
+  type and how long it has been seen. Whether anything else the agent observes says how much longer a running event
+  will last was checked in the generator's source and on 400 sampled scenarios each of Full and Small.
+  - **In the source:** every duration is drawn from its type's law on a random stream of its own. Severity, target,
+    tariff rate and lead times use other streams, child events are drawn from a parent's start and never its end, and
+    no message is generated from an end time (`closure_end` is empty under the scored regime).
+  - **On samples:** for the five classes we forecast, adding 16 observables to the law changes the Brier score of
+    "still on after h weeks" by 0.0000 to 0.003, zero or worse within noise, and none of 91 correlations per task
+    stands out. The test has power: the generator's hidden mixture component, which the agent cannot see, shows at
+    once. The law itself is calibrated.
+  - **Sanctions and tariffs,** which we keep for the whole window: nothing observable says which one ends, and the law
+    alone would only tell the planner that a cut edge has 0.26 to 0.30 of its capacity where it has 0.25.
+  - **The one exception is the regional-conflict family:** a war's second-stage capacity cut ends exactly 52 weeks
+    after it began, and its first stage and the closure of its strait never end before 52 weeks. By exposure that is
+    about a tenth of the capacity and strait families, a guess of +0.001 to +0.002 on Full, below what our episode
+    sets can resolve. Not built.
+
+  So the forecast is at the limit of what the observation contains, and the rest of what perfect knowledge of ends
+  would give (about +0.007 on Full) is luck of the draw.
 
 ## Reproducing a number
 

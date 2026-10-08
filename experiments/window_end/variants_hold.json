@@ -1,0 +1,6 @@
+{
+  "oh_draw075": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "open_hold_draw": 0.75}},
+  "oh_draw1": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "open_hold_draw": 1.0}},
+  "oh_short005": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "open_hold_short": 0.05}},
+  "oh_short02": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "open_hold_short": 0.2}}
+}

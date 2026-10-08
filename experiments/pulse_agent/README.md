@@ -400,3 +400,12 @@ uv run python experiments/approaches/tune.py report --base=mpc_det_h20 --task=fu
 ```
 
 `report` prints every cached variant against the base with a 90 % paired bootstrap interval.
+
+## After v8 (2026-10-08)
+
+- **`agents/mpc_pulse_rec_v9b`:** `mpc_pulse_rec_v8_on` with `pulse_run` 6 (was 4), no code change. About +0.0005
+  over eight local sets (one significant gain, no significant loss), close to noise. **Uploaded on 2026-10-08: 0.8767
+  on the public board** (v8_on 0.8768), no fallback week. It came out of the experiments in
+  [experiments/window_end/README.md](../window_end/README.md): longer and shorter windows, a tapered or final
+  window-end value, sweeps of the settings on Small and Full, and the cost-part comparison against the clairvoyant
+  plan. None of them gained.

@@ -1,0 +1,3 @@
+{
+  "c_run6_pp": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "pulse_run": 6.0, "pulse_partial": 0.7, "short_premium": 0.5}}
+}

@@ -1,0 +1,10 @@
+{
+  "v8_on": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true}},
+  "v9b_x_off": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true}},
+  "h24": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "h_weeks": 24}},
+  "h32": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "h_weeks": 32}},
+  "taper8": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_taper": 8.0}},
+  "taper16": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_taper": 16.0}},
+  "taper26": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_taper": 26.0}},
+  "h48": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "h_weeks": 48}}
+}

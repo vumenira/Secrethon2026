@@ -47,6 +47,12 @@ public leaderboard.
 | `mpc_buffer` | `buf_lp` and `buf_knobs` together; has a `params.json` | tuning 0.7562 |
 | `mpc_combined` | `mpc_buffer` plus `rec_merged` | fresh 0.7545 (0.7568 with the reserve off) |
 
+## Experiments after v8 (2026-10-08)
+
+| Folder | What it is | Score |
+| --- | --- | --- |
+| `mpc_pulse_rec_v9b_x` | `agents/mpc_pulse_rec_v8_on` with two switches in `reserve.py`, `end_value_taper` and `end_value_last` (off: plays as v8_on to the cent) | both lose or tie; [../../window_end/README.md](../../window_end/README.md) |
+
 ## Analysis probes (not agents)
 
 | Folder | What it is |

@@ -1,0 +1,8 @@
+{
+  "v9b_x_off2": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true}},
+  "last05": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_last": 0.5}},
+  "last1": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_last": 1.0}},
+  "last2": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_last": 2.0}},
+  "h32_last2": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_last": 2.0, "h_weeks": 32}},
+  "h48_last2": {"base": "mpc_pulse_rec_v9b_x", "params": {"open_hold": true, "end_value_last": 2.0, "h_weeks": 48}}
+}

@@ -1,0 +1,191 @@
+{
+ "s_hold8": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_hold_weeks": 8.0
+  }
+ },
+ "s_hold18": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_hold_weeks": 18.0
+  }
+ },
+ "s_hold26": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_hold_weeks": 26.0
+  }
+ },
+ "s_partial0.3": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_partial": 0.3
+  }
+ },
+ "s_partial0.7": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_partial": 0.7
+  }
+ },
+ "s_run2": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_run": 2.0
+  }
+ },
+ "s_run6": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_run": 6.0
+  }
+ },
+ "s_fill0.8": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_fill": 0.8
+  }
+ },
+ "s_fill1": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_fill": 1.0
+  }
+ },
+ "s_margin1.1": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_margin": 1.1
+  }
+ },
+ "s_memory2": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_memory": 2.0
+  }
+ },
+ "s_memory8": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_memory": 8.0
+  }
+ },
+ "s_payback6": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_payback": 6.0
+  }
+ },
+ "s_payback24": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "pulse_payback": 24.0
+  }
+ },
+ "s_ev1.5": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "end_value": 1.5
+  }
+ },
+ "s_ev3": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "end_value": 3.0
+  }
+ },
+ "s_resw4": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "reserve_weeks": 4.0
+  }
+ },
+ "s_resw12": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "reserve_weeks": 12.0
+  }
+ },
+ "s_prem0.5": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "short_premium": 0.5
+  }
+ },
+ "s_prem2": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "short_premium": 2.0
+  }
+ },
+ "s_caution0.8": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "caution": 0.8
+  }
+ },
+ "s_rtcov4": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "ration_trim_cover": 4.0
+  }
+ },
+ "s_rtcov10": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "ration_trim_cover": 10.0
+  }
+ },
+ "s_ftcov4": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "fuel_trim_cover": 4.0
+  }
+ },
+ "s_ftcov10": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "fuel_trim_cover": 10.0
+  }
+ },
+ "s_ohlast3": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "open_hold_last": 3
+  }
+ },
+ "s_ohlast6": {
+  "base": "mpc_pulse_rec_v8_on",
+  "params": {
+   "open_hold": true,
+   "open_hold_last": 6
+  }
+ }
+}

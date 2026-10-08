@@ -1,0 +1,5 @@
+{
+  "h16": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "h_weeks": 16}},
+  "h18": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "h_weeks": 18}},
+  "h12": {"base": "mpc_pulse_rec_v8_on", "params": {"open_hold": true, "h_weeks": 12}}
+}

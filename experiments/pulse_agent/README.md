@@ -2,16 +2,16 @@
 
 This is the detailed log behind our agent. For the short version, read [SOLUTION.md](../../SOLUTION.md) first.
 
-- **The final agent is `agents/mpc_pulse_rec_v11`** (confirmed on untouched Full episodes, not uploaded; the best
-  upload is `agents/mpc_pulse_rec_v10_on`, 0.8854 on the public board). `agents/mpc_pulse_rec_v12` is the next
-  candidate, not confirmed yet. Every earlier version is kept, runnable, under `versions/<name>` beside this file
-  (`experiments/pulse_agent/versions/`); a version named below without a path is one of those folders.
+- **The final agent is `agents/mpc_pulse_rec_v12`** (0.8910 on the public board; 0.916 on 64 untouched Full
+  episodes). Every earlier version is kept, runnable, under `versions/<name>` beside this file
+  (`experiments/pulse_agent/versions/`) or, for the last few, in `agents/`; a version named below without a path is
+  one of the `versions/` folders.
 - **Part one** (down to "Risks and limits") describes the first version, `versions/ft_buffer`: the benchmark's rolling LP
   planner with a value for goods at the window's end, a fuel reserve at grids, a "pulse" that delivers scarce fuel in
   whole weeks so fabs can run, and a price that sends scarce fuel to the grid that loses most. It reads no warnings and
   no announcements and has no learned parts. Uploaded on 2026-10-06, it scored 0.8289.
-- **Part two** ("Later versions") adds one entry per version, v2 to v11, each with what it changed, what was measured
-  and what was dropped, the analyses of 2026-10-09 behind v11, and the three pieces merged as v12.
+- **Part two** ("Later versions") adds one entry per version, v2 to v12, each with what it changed, what was measured
+  and what was dropped, and the analyses of 2026-10-09 behind v11 and v12.
 - **The code explains itself** in module docstrings: `agent.py` (overview, every setting commented in `PARAMS`),
   `pulse.py` (the pulse and the rules after it), `reserve.py` (the LP changes, with formulas), `recovery.py` (the
   forecast).
@@ -682,8 +682,16 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   26 bn. The episode that loses 69 bn on the untouched Small set was never opened. Built as `hold_checks` in
   `agents/mpc_pulse_rec_v12b`.
 - **A second pass over what v11 loses on Full (2026-10-09; `agents/mpc_pulse_rec_v12a`).** Two rules for a grid the
-  pulse stood down at because a short fuel "cannot be held"; neither has a setting of its own. The numbers are from
-  the cached plays; the builder's own report was cut off by a session restart and is still to be written up here.
+  pulse stood down at because a short fuel "cannot be held"; neither has a setting of its own.
+  - **Where v11's loss sits.** Its shortfall on the 64 Full episodes of roots 12345, 2026 and 777 is 0.127. Over
+    the 40 episodes with a base-first bound, 0.047 is closed and 0.060 open (0.073 for v9). On 28 recorded
+    episodes about 85 % of the open shortage falls in the second year, and it splits into grids whose nuclear
+    fuel ran short (0.013; closed in fact, since the bound stretches a stock that a shedding grid burns), grids
+    whose gas comes by pipe or is not worth a tank (China, Europe, SEA, the US: 0.016, the piece the two rules
+    address) and a remainder at Taiwan, Korea and Japan that looks like foresight (0.008).
+  - **Tried and dropped:** topping up wafers at powered fabs. The planner does under-load them (1,589 bn of lots
+    on the 28 episodes), but both forms lost on the episodes picked for it (-24 and -31 bn over eight): lots move
+    between fabs instead of rising.
   - **`pipe_pulse`.** The first pass called a fuel that comes straight from a source unreachable. But a supply
     node is a tank too: the simulator refills it each week up to its storage and keeps what is not shipped. So a
     fuel that reaches a grid from a supply node over an edge one week long can wait there as a terminal's fuel
@@ -705,14 +713,46 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   | Small 12345 and 2026 (128) | equal to the cent in every episode | 0 / 0 |
 
   On Small no pipe can carry a charge and one charge pays at no grid, so neither rule acts there. These three
-  sets are where the rules were found, through three revisions of the folder; nothing is confirmed yet.
-- **v12, `agents/mpc_pulse_rec_v12` (2026-10-09, merged, not confirmed).** v11 with the three pieces above merged
-  into `pulse.py` and `agent.py` by a three-way merge on v11: `pipe_pulse` and `lean_hold` (v12a), `hold_checks`
-  with "together" and "shock" (v12b), `fuel_cancel_tariff` (v12c). The three folders are kept beside it as they
-  were measured. The six merge conflicts were two pieces adding text or code at the same place, and both sides
-  were kept. With all four new switches off the merged folder reproduces v11 to the cent on all 16 episodes of
-  Full 12345. Still to do when this was committed: each piece alone against its own measured play, the pieces
-  together, the untouched roots (Full 9001 and 5150, Small 9001) and `sbf check`.
+  sets are where the rules were found, through three revisions of the folder; the confirmation on untouched
+  episodes is in the v12 entry below. Two caveats from the builder: the final count in `lean_hold`'s payback test
+  (one whole charge) was settled after a first form lost on two Small sets, and `pipe_pulse`'s payback test still
+  subtracts the supply nodes' weekly lift, the reasoning that failed for `lean_hold`. The largest loss, 46 bn in
+  one episode, is `lean_hold` running a fab for twelve more whole weeks whose chips were not short: the planner
+  then sent fewer wafers to another fab of the same product. The pulse values every whole week as if its chips
+  were needed, in v11's rules too.
+- **v12, `agents/mpc_pulse_rec_v12`, confirmed (2026-10-10).** v11 with the three pieces above merged into
+  `pulse.py` and `agent.py` by a three-way merge on v11: `pipe_pulse` and `lean_hold` (v12a), `hold_checks` with
+  "together" and "shock" (v12b), `fuel_cancel_tariff` (v12c). The three folders are kept beside it as they were
+  measured. The six merge conflicts were two pieces adding text or code at the same place, and both sides were
+  kept.
+  - **The merge is exact.** With all four new switches off the merged folder reproduces v11 to the cent on all 16
+    episodes of Full 12345 and all 64 of Small 12345. With one piece on at a time it reproduces that piece's own
+    measured play to the cent on Full 12345 (all three) and on Small 12345 (`hold_checks`; the other two cannot
+    act on Small).
+  - **The pieces add up.** On Full 12345 they measured +0.0090, +0.0008 and +0.0007 separately and +0.0101
+    together (0.8835 to 0.8936).
+
+  | Set | `mpc_pulse_rec_v11` | `mpc_pulse_rec_v12` | Difference (90 % interval) | Better / worse |
+  | --- | --- | --- | --- | --- |
+  | Full 12345 (pieces found here) | 0.8835 | 0.8936 | +0.0101 (+0.0037 to +0.0162) | 12 / 3 |
+  | Full 2026 (pieces found here) | 0.9052 | 0.9128 | +0.0076 (+0.0047 to +0.0108) | 12 / 0 |
+  | Full 777 (pieces found here, 32 episodes) | 0.8597 | 0.8702 | +0.0105 (+0.0071 to +0.0143) | 29 / 1 |
+  | Full, those three as one (64) | 0.8730 | 0.8830 | +0.0100 (+0.0075 to +0.0128) | 53 / 4 |
+  | **Full 9001 (untouched, 32 episodes)** | 0.9069 | 0.9194 | +0.0125 (+0.0084 to +0.0167) | 27 / 1 |
+  | **Full 5150 (untouched, 32 episodes)** | 0.9034 | 0.9128 | +0.0094 (+0.0051 to +0.0143) | 25 / 4 |
+  | **Full, the two untouched sets as one (64)** | 0.9050 | 0.9161 | +0.0111 (+0.0081 to +0.0142) | 52 / 5 |
+  | Small 12345 and 2026 as one (128) | 0.8885 | 0.8892 | +0.0007 (+0.0001 to +0.0013) | 12 / 6 |
+  | **Small 9001 (untouched)** | 0.8930 | 0.8935 | +0.0005 (+0.0000 to +0.0010) | 4 / 1 |
+
+  - **On Full the gain did not shrink on untouched episodes** (+0.0111 against +0.0100 where the pieces were
+    found). The largest loss in an untouched Full episode is 24 bn USD, the largest gain 200 bn. Against v10 on
+    the same 64 episodes v12 is +0.0173 (+0.0140 to +0.0208), 0.8988 to 0.9161.
+  - **On Small it changes little,** as its pieces said it would.
+  - `sbf check mpc_pulse_rec_v12` passes under Ubuntu on Small and Full. Timed back to back with v11 on the same
+    Full episode on a loaded machine: slowest week 1.55 s of 4 s and median 0.48 s, against 1.87 s and 0.50 s for
+    v11, so it costs no more CPU.
+  - **Uploaded on 2026-10-09: 0.8910 on the public board, no fallback week** (the best upload before it:
+    `mpc_pulse_rec_v10_on`, 0.8854).
 
 ## Reproducing a number
 

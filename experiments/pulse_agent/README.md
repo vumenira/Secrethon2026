@@ -534,7 +534,7 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   of the fuels rule was changed once after its first scored round, from traces of three losing tuning episodes; the
   fresh and untouched sets were played once, after that. On Full 12345 three episodes carry +0.0016 of the +0.0018.
   CPU per week on Full is unchanged (mean 0.27 s, slowest about 1.0 s in the same process as v9).
-  `versions/mpc_pulse_rec_v10_on` is a snapshot from the evening before (the first form of the fuels rule, all four
+  `agents/mpc_pulse_rec_v10_on` is a snapshot from the evening before (the first form of the fuels rule, all four
   switches on through a `params.json`): **uploaded on 2026-10-09, 0.8854 on the public board.**
 - **Why the worst Full episodes are worse (analysis of 2026-10-09, on v9; roots 12345, 2026 and 777).** The twelve
   worst of the 64 episodes (per-episode score 0.53 to 0.81) were recorded and compared with the clairvoyant plan,

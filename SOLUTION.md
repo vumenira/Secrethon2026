@@ -3,7 +3,8 @@
 Українською: [SOLUTION.uk.md](SOLUTION.uk.md)
 
 **The agent to submit is `agents/mpc_pulse_rec_v10`.** Its predecessor v9 scores 0.8827 on the public board (Small)
-and a snapshot of v10 taken while it was being built scores 0.8854; the final v10 has not been uploaded yet. It is the
+and a snapshot of v10 taken while it was being built (`agents/mpc_pulse_rec_v10_on`) scores 0.8854; the final v10 has
+not been uploaded yet. It is the
 benchmark's own rolling LP planner with a handful of rules added, each found by measuring where the planner loses
 money. It has no learned parts, reads no warnings or announcements, and uses about a quarter of the CPU limit.
 
@@ -141,6 +142,7 @@ On native Windows, `sbf evaluate` and `sbf compare` stop on a missing Unix modul
 | Path | What |
 | --- | --- |
 | `agents/mpc_pulse_rec_v10/` | the final agent: `agent.py` (settings, glue), `pulse.py`, `reserve.py`, `recovery.py`, `sbflow/` (the vendored planner) |
+| `agents/mpc_pulse_rec_v10_on/` | the snapshot of v10 that was uploaded (0.8854): an earlier form of one rule and two switches the final v10 leaves off, set through its `params.json` |
 | `agents/mpc_det_h20/` | the baseline every comparison is against |
 | `experiments/pulse_agent/README.md` | the full log: every version, table and dropped idea |
 | `experiments/pulse_agent/versions/` | every earlier version, runnable, with an index |

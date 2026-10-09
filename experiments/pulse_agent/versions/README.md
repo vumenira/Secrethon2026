@@ -34,7 +34,7 @@ public leaderboard.
 | `mpc_pulse_rec_v7` | `mpc_pulse_rec_v6` plus the two trim rules, before the opening hold | fresh 0.8676 |
 | `mpc_pulse_rec_v8` | the code of `mpc_pulse_rec_v8_on` with the opening hold switched off; plays exactly as v7 | fresh 0.8676 |
 | `mpc_pulse_rec_v9_safe` | `mpc_pulse_rec_v9` with every searched setting back at its starting value (a `params.json`); the test of whether the search fitted noise | board 0.8793 |
-| `mpc_pulse_rec_v10_on` | a snapshot of v10 while it was being built: the first form of its fuels rule, all four switches on through a `params.json` | board 0.8854 |
+| `agents/mpc_pulse_rec_v10_on` (not in this folder) | a snapshot of v10 while it was being built: the first form of its fuels rule, all four switches on through a `params.json`; kept in `agents/` because it is the best upload so far | board 0.8854 |
 | `ft_buffer_v2`, `_v3`, `_v4` | the pulse of v2, v3 and v4 without the recovery forecast; each has a `params.json` | tuning 0.8327, 0.8373, 0.8496 |
 | `ft_buffer_v5` | research on telling the planner which weeks the fabs run; plays as `ft_buffer_v4` | not a gain |
 

@@ -1,6 +1,6 @@
 # Earlier versions of the pulse agent
 
-Every agent folder built on the way to `agents/mpc_pulse_rec_v10`, kept as it was played so that any number in
+Every agent folder built on the way to `agents/mpc_pulse_rec_v11`, kept as it was played so that any number in
 [../README.md](../README.md) can be replayed. None of these is the agent to submit.
 
 - **Each folder is a complete submission folder** (`agent.py`, its modules and its own copy of the vendored planner
@@ -24,7 +24,9 @@ public leaderboard.
 | `mpc_pulse_rec_v6` | gas trimmed in slack weeks; unburnable fuel not shipped | board 0.8714 |
 | `mpc_pulse_rec_v8_on` | trim for other fuels and a better forecast; opening hold (its `params.json` switches the hold on) | board 0.8768 |
 | `mpc_pulse_rec_v9` | runs of full weeks start sooner and end cleanly | board 0.8827 |
-| `agents/mpc_pulse_rec_v10` (the final agent, not in this folder) | a full week needs every fuel; the stand-down test counts as the simulator does | fresh 0.8796; not uploaded in its final form |
+| `agents/mpc_pulse_rec_v10` (not in this folder) | a full week needs every fuel; the stand-down test counts as the simulator does | fresh 0.8796; not uploaded in its final form |
+| `agents/mpc_pulse_rec_v11` (the final agent, not in this folder) | scarce fuels wait together, the pulse holds through a shock, a small fuel no longer outbids the scarce one on a shared route | untouched 0.8930 (Full: 0.9069 and 0.9034); not uploaded |
+| `agents/mpc_pulse_rec_v12` with `v12a`, `v12b`, `v12c` (not in this folder) | the next candidate and its three pieces: fuel by pipe held at the supply node, two checks on v11's rules, a limit on fuel bought on a tariffed route | not confirmed |
 
 ## Steps between the uploads
 
@@ -35,6 +37,9 @@ public leaderboard.
 | `mpc_pulse_rec_v8` | the code of `mpc_pulse_rec_v8_on` with the opening hold switched off; plays exactly as v7 | fresh 0.8676 |
 | `mpc_pulse_rec_v9_safe` | `mpc_pulse_rec_v9` with every searched setting back at its starting value (a `params.json`); the test of whether the search fitted noise | board 0.8793 |
 | `agents/mpc_pulse_rec_v10_on` (not in this folder) | a snapshot of v10 while it was being built: the first form of its fuels rule, all four switches on through a `params.json`; kept in `agents/` because it is the best upload so far | board 0.8854 |
+| `mpc_pulse_rec_v9_tail` | the play test of the worst-episode analysis: v9 with its rules behind `tail_` switches (off: plays as v9); rebuilt on v10 as v11 | +0.0086 on Full over v9 |
+| `mpc_pulse_rec_v9_war` | v9 with the war family's certain ends in `recovery.py` (`war_end`); the code was corrected after its plays and not replayed | +0.0001 on Full, left out |
+| `mpc_pulse_rec_v10_kr` | v10 with `premium_whole` in `reserve.py`, switch off by default; its `reserve.py` is v11's | with the pulse's hold: +0.0045 on Full over v10 |
 | `ft_buffer_v2`, `_v3`, `_v4` | the pulse of v2, v3 and v4 without the recovery forecast; each has a `params.json` | tuning 0.8327, 0.8373, 0.8496 |
 | `ft_buffer_v5` | research on telling the planner which weeks the fabs run; plays as `ft_buffer_v4` | not a gain |
 

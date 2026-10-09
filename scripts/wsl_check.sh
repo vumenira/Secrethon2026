@@ -3,7 +3,7 @@
 # not work natively there. Run it from PowerShell through WSL, from any directory:
 #
 #   $p = wsl -d Ubuntu -- wslpath -a "scripts/wsl_check.sh"
-#   wsl -d Ubuntu -- bash "$p" mpc_pulse_rec_v9 full
+#   wsl -d Ubuntu -- bash "$p" mpc_pulse_rec_v10 full
 #
 # usage: wsl_check.sh <agent> <task>     (agent: a folder name of agents/ or a path; task: tiny, small or full)
 # It keeps its own environment (~/.venvs/secrethon) so that uv does not fight over the Windows .venv.

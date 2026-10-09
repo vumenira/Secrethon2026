@@ -1,16 +1,16 @@
-# The pulse agent: every version and measurement (2026-10-06 to 2026-10-08)
+# The pulse agent: every version and measurement (2026-10-06 to 2026-10-09)
 
 This is the detailed log behind our agent. For the short version, read [SOLUTION.md](../../SOLUTION.md) first.
 
-- **The final agent is `agents/mpc_pulse_rec_v9`** (0.8827 on the public board). Every earlier version is kept,
-  runnable, under `versions/<name>` beside this file (`experiments/pulse_agent/versions/`); a version named below
-  without a path is one of those folders.
+- **The final agent is `agents/mpc_pulse_rec_v10`** (a snapshot of it scored 0.8854 on the public board, its
+  predecessor v9 0.8827). Every earlier version is kept, runnable, under `versions/<name>` beside this file
+  (`experiments/pulse_agent/versions/`); a version named below without a path is one of those folders.
 - **Part one** (down to "Risks and limits") describes the first version, `versions/ft_buffer`: the benchmark's rolling LP
   planner with a value for goods at the window's end, a fuel reserve at grids, a "pulse" that delivers scarce fuel in
   whole weeks so fabs can run, and a price that sends scarce fuel to the grid that loses most. It reads no warnings and
   no announcements and has no learned parts. Uploaded on 2026-10-06, it scored 0.8289.
-- **Part two** ("Later versions") adds one entry per version, v2 to v9, each with what it changed, what was measured
-  and what was dropped.
+- **Part two** ("Later versions") adds one entry per version, v2 to v10, each with what it changed, what was measured
+  and what was dropped, and the analyses of 2026-10-09 that v11 is being built from.
 - **The code explains itself** in module docstrings: `agent.py` (overview, every setting commented in `PARAMS`),
   `pulse.py` (the pulse and the rules after it), `reserve.py` (the LP changes, with formulas), `recovery.py` (the
   forecast).
@@ -385,7 +385,7 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   smaller gain on Small than on the two roots, and again nothing on Full.
   **`mpc_pulse_rec_v8_on` uploaded on 2026-10-07: 0.8768 on the public board, no fallback week** (v7 alone was not
   uploaded).
-- **v9, `agents/mpc_pulse_rec_v9`, confirmed (2026-10-08):** how a run of whole weeks starts and ends. The plan was to
+- **v9, `versions/mpc_pulse_rec_v9`, confirmed (2026-10-08):** how a run of whole weeks starts and ends. The plan was to
   replace the pulse's timing rules with a schedule optimised each week; the ceiling was measured first, on Full.
   - **A full scheduler is not worth building.** With the arrivals known in advance, the best schedule of each grid's
     deliveries is worth +0.010 on Full. Re-solved each week from what the agent sees it is at or below zero (-0.0004,
@@ -433,6 +433,175 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
 
   So the forecast is at the limit of what the observation contains, and the rest of what perfect knowledge of ends
   would give (about +0.007 on Full) is luck of the draw.
+- **Was anything fitted? A clean test on untouched episodes (2026-10-09).** A new root, 9001 (32 Full and 64 Small
+  episodes), was built and played once per agent, with nothing chosen on it. It stays reserved for confirming a
+  finished version: no analysis and no tuning there.
+
+  | Set | Role | `mpc_pulse_rec_v2` | `mpc_pulse_rec_v9` | Gain (90 % interval) | Better / worse |
+  | --- | --- | --- | --- | --- | --- |
+  | Full 9001 (32) | untouched | 0.8807 | 0.9010 | +0.0202 (+0.0169 to +0.0239) | 32 / 0 |
+  | Full 777 (32) | confirmation from v4 on | 0.8239 | 0.8448 | +0.0209 (+0.0178 to +0.0240) | 31 / 1 |
+  | Full 2026 (16) | confirmation, reused | 0.8667 | 0.8940 | +0.0273 (+0.0205 to +0.0349) | 16 / 0 |
+  | Full 12345 (16) | tuning | 0.8418 | 0.8700 | +0.0282 (+0.0240 to +0.0326) | 16 / 0 |
+  | Small 9001 (64) | untouched | 0.8502 | 0.8890 | +0.0388 (+0.0329 to +0.0448) | 62 / 2 |
+  | Small 2026 (64) | confirmation | 0.8389 | 0.8766 | +0.0377 (+0.0324 to +0.0435) | 61 / 3 |
+  | Small 12345 (64) | tuning | 0.8416 | 0.8804 | +0.0388 (+0.0327 to +0.0451) | 62 / 2 |
+
+  - **Small: nothing was fitted.** Untouched less used is +0.0005 (-0.0068 to +0.0077).
+  - **Full: about a quarter of the gain the two old sets showed is not there.** Untouched less roots 12345 and 2026
+    is -0.0076 (-0.0129 to -0.0021); root 777 agrees with the untouched set. On 777, where every version was played,
+    the shortfall sits in v3, v4 and v9; v6 and v7 hold in full.
+  - **Expect v9 near 0.875 on Full:** its score over all 96 Full episodes (0.858 to 0.891); the four sets give 0.870,
+    0.894, 0.845 and 0.901.
+  - **The searched settings are not fitted noise.** `versions/mpc_pulse_rec_v9_safe` is v9 with every setting that was
+    chosen by search put back to its starting value (`end_value` 1.0, `reserve_weeks` 4 without feeders,
+    `pulse_partial` 1.0, `pulse_payback` 0, `pulse_tail` 0, the two forecast rules found on Small, `open_hold` and
+    `wafers_fit` off). It is below v9 on all seven sets: -0.0052 (-0.0080 to -0.0025) over the 80 Full episodes its
+    values were not chosen on, -0.0054 (-0.0077 to -0.0034) over 192 Small episodes. The searched values alone are
+    worth +0.0047 on the Full episodes they were chosen on and +0.0043 on the 80 they were not.
+    **Uploaded on 2026-10-08: 0.8793 on the public board** (v9: 0.8827), so the stripped version is not safer.
+  - **An audit of every `PARAMS` entry** sorted them into derived, confirmed on fresh episodes, chosen on tuning
+    episodes only, and never varied. Chosen on tuning episodes only: the reserve's size, the end value's level,
+    `pulse_partial` with `pulse_payback`, `pulse_tail`, `pulse_hold_weeks`, the opening hold's five details,
+    `wafers_fit` and three forecast rules. All but `pulse_hold_weeks` and one forecast rule are reset in the
+    stripped version above.
+- **Where the shortfall sits on Full (2026-10-09, from the cached costs of 96 episodes).** The score is weighted
+  0.50 / 0.30 / 0.15 / 0.05 over harm levels 1 to 4, and v9 scores 0.873 / 0.870 / 0.892 / 0.869 there, so the calm
+  level carries half the shortfall. The typical episode is fine (per-episode median 0.91 at every level); the worst
+  fifth of level-1 episodes hold 48 % of that level's loss, with single episodes at 0.53 to 0.75. Four of the six
+  worst level-1 episodes are in root 777, which is why that set scores 0.845.
+- **Closed on 2026-10-09 without a build:**
+  - **The 104 action entries per Full episode that the simulator refuses** are one override slot a week, on a route
+    prohibited for the whole episode, sent at quantity 0 because the action format sends every slot of a pair. The
+    package's own `mpc_det_h20` played natively scores 0.3290 on Full root 12345, as the port does; the largest
+    difference in an episode is 1.5e-6 of its cost.
+  - **Weeks the agent does not fully observe** do not occur under the scored regime (0 of 1,664 Full weeks and 0 of
+    3,328 Small weeks on root 12345), so the blackout branches never run.
+  - **Warnings and announcements, on Full with the pulse:** on the v2 pulse agent (Full root 12345), the true course
+    of the whole 20-week window is worth +0.022, of which the ends of what is already visible are +0.015. Every
+    onset known perfectly is therefore about +0.007, before decoys and short leads.
+  - **Finer window-end values:** the Full score is flat in `end_value` between 1 and 3 (0.829, 0.832, 0.829 at the
+    `ft_q` stage).
+  - **The war family's certain ends: built, worth +0.0001 on Full, left out.** Read in the generator and checked on
+    800 sampled scenarios: a regional conflict cuts the two regions' edges to 0.40 for max(its duration, 52) weeks
+    with the strait shut if it is the Taiwan Strait, then to 0.27 for exactly 52 weeks. So the second stage ends
+    at least 104 weeks after the onset, and on Full only conflicts that began before week 1 end one inside the
+    episode. The forecast already keeps the first stage and the strait for the whole window (721 of 721
+    strait-weeks), so the only correction is releasing a second-stage cut on its known week. The truth for the
+    whole family is worth +0.0011 on Full root 12345, the certain part +0.0004; the rule as played gave +0.00009
+    over 64 Full episodes (+0.00003 to +0.00017; it acts in 18, three carry the gain) and cannot act on Small.
+    Knowing weeks ahead that capacity returns is worth nothing to the planner; all of the effect is the week the
+    cut ends in. Not worth 150 lines in the submitted agent.
+  - **Costs other than shortages, and buying nuclear fuel later.** On 16 recorded Full episodes of v10, weighted as
+    the score is, freight, tariffs, holding, war risk, disposal and salvage are 58 bn USD per episode against the
+    clairvoyant plan's 36: 0.007 of v10's gap of 0.105. All the rest is unserved demand (0.101); v10 sheds slightly
+    less base load than the plan. Two thirds of the 0.007 is nuclear fuel: v10 buys on both of a grid's routes
+    until stock covers the weeks left and a unit waits 37 weeks at the grid, where the plan, knowing which routes
+    stay open, waits a year and buys just in time. That stock is insurance that gets used: 21 % of nuclear routes
+    are prohibited in week 1 and in 12 % of episodes a grid later loses both. A ledger of purchase rules over 464
+    scenarios (it reproduces v10's played nuclear costs within 0.05 bn) gives buying just in time -0.046, and
+    covering only the loss of the largest route +0.0012 (+0.0002 to +0.0020) with single episodes losing up to
+    624 bn. Applied only to a route that pays a tariff this week it is +0.0007 (+0.0006 to +0.0008) with no loss
+    in 464 scenarios; that form is the only one worth adding, and it changes nothing on Small.
+- **v10, `agents/mpc_pulse_rec_v10`, confirmed (2026-10-09):** two rules for when a run of whole weeks may start or
+  go on, found while tracing v9's losing episodes. Neither has a setting of its own.
+  - **Every fuel counts (`schedule_fuels`).** v9's tests looked at the rationed fuel alone, but a week is whole only
+    if every fuel's segment runs. At one grid 5 of 15 gas charges were made the week before a crude-short week and
+    burnt for base load; at another, gas and crude were full in alternate weeks for 30 weeks. The rule works out in
+    how many weeks the other fuels next allow a whole week (from flows, stocks, shipments due and the pulse's own
+    arrival forecast) and charges, or continues a run, only if the terminal can keep the rationed segment full
+    until then.
+  - **The stand-down test counts a whole week as the simulator does (`schedule_hold`):** the larger of burn and
+    threshold, plus what the grid's stock burns that week at the rationed rate, where it counted burn plus
+    threshold.
+  - **Measured and left off:** waiting for `pulse_run` whole weeks where the threshold exceeds a week's burn
+    (`schedule_left`: +0.0001 on Full, -0.0009 on Small next to the two rules) and charging only when the wafers
+    are there (`schedule_wafers`: -0.0001 on Full). A schedule for the end of sales was measured before building:
+    +0.0001 once free only after the last sellable week; the +0.009 seen earlier was the payback of fuel held
+    earlier.
+
+  | Set | `mpc_pulse_rec_v9` | `mpc_pulse_rec_v10` | Difference (90 % interval) | Better / worse |
+  | --- | --- | --- | --- | --- |
+  | Full 12345 (tuning) | 0.8700 | 0.8718 | +0.0018 (+0.0007 to +0.0031) | 8 / 2 |
+  | Full 2026 (fresh) | 0.8940 | 0.8977 | +0.0037 (+0.0015 to +0.0067) | 7 / 5 |
+  | Full 777 (fresh, 32 episodes) | 0.8448 | 0.8509 | +0.0062 (+0.0030 to +0.0098) | 19 / 4 |
+  | Full 9001 (untouched, 32 episodes) | 0.9010 | 0.9020 | +0.0011 (+0.0004 to +0.0018) | 10 / 4 |
+  | Small 12345 (tuning) | 0.8804 | 0.8843 | +0.0039 (+0.0022 to +0.0057) | 24 / 15 |
+  | Small 2026 (fresh) | 0.8766 | 0.8796 | +0.0030 (+0.0016 to +0.0046) | 17 / 16 |
+  | Small 9001 (untouched) | 0.8890 | 0.8922 | +0.0032 (+0.0018 to +0.0046) | 19 / 17 |
+
+  With the two switches off it reproduces v9 to the cent on all 16 Full and all 64 Small tuning episodes. The form
+  of the fuels rule was changed once after its first scored round, from traces of three losing tuning episodes; the
+  fresh and untouched sets were played once, after that. On Full 12345 three episodes carry +0.0016 of the +0.0018.
+  CPU per week on Full is unchanged (mean 0.27 s, slowest about 1.0 s in the same process as v9).
+  `versions/mpc_pulse_rec_v10_on` is a snapshot from the evening before (the first form of the fuels rule, all four
+  switches on through a `params.json`): **uploaded on 2026-10-09, 0.8854 on the public board.**
+- **Why the worst Full episodes are worse (analysis of 2026-10-09, on v9; roots 12345, 2026 and 777).** The twelve
+  worst of the 64 episodes (per-episode score 0.53 to 0.81) were recorded and compared with the clairvoyant plan,
+  with five typical episodes as a contrast.
+  - **It is Korea, and the state is there in week 1.** In 11 of the twelve the Korean grid gets a fraction of the
+    gas it burns (its gas segment runs at 0.05 to 0.65 of full, median 0.3) for most of the episode, and its fabs
+    stand idle: 60 % of all lots lost in the twelve. In all 13 episodes of the 64 where the edges into Korea's
+    terminal could carry under half a week's gas, the Australia-to-Korea gas edge (0.66 of Korea's burn) is banned,
+    in 11 of them for weeks 1 to 90, and a strait route is cut or closed as well. Those 13 episodes hold 43 % of all
+    money lost.
+  - **Most of that is closed to any agent.** The clairvoyant plan runs the Korean memory fab at 0.5 to 1.0 by
+    shedding base load. A bound that respects "base load before fabs" (the clairvoyant LP plus, per grid and week, a
+    variable that ties the fabs' share of their draw to the scarcest fuel's segment; it still knows all 104 weeks
+    and lets fuel wait at a grid that sheds, so it is optimistic) puts at least 55 % of the twelve's loss out of
+    reach, 67 to 72 % in the four worst. In typical episodes the closed part is 0 to 2 % of attainable. Over the 40
+    episodes the bound was solved for, closed is 0.047 of the pooled shortfall of 0.141.
+  - **Foresight is not what is missing there:** the true network in all 20 window weeks recovers 6 % of the
+    twelve's loss, and next to nothing in the four worst.
+  - **What is reachable is the pulse's handling of grids with two short fuels or a trickle.** Five rules without a
+    tuned number, play-tested in a working copy of v9 (not committed), gained +0.0086 on the 64 Full
+    episodes (+0.0059 to +0.0116; 48 episodes better, 16 worse), more than half of it in ordinary episodes:
+    - **sync** (half the gain): in a week that is not whole, also hold every fuel that could run in full, so it is
+      not burnt for base load while the week waits for the other fuel; charge the gas only if the other fuels will
+      have a week's burn at their terminals. At Japan, gas and crude had their whole weeks in different weeks and
+      the fabs ran one week in 14 where the fuel carried one in 3 to 4.
+    - **idle:** in an energy shock at a pulsed grid, keep holding instead of releasing the tank to base load.
+    - **lack and wait:** count what a tank still lacks as the simulator burns it, and let a tank take as long as
+      lots can still be sold instead of 12 weeks, so a trickle of 0.1 of burn is collected instead of burnt.
+    - **lapse:** apply the end-of-run test after long runs too, which v9 skipped after four whole weeks.
+    - **runs** (a sixth, +0.0007): where the threshold exceeds a week's burn, wait until the tank carries as many
+      whole weeks as it can hold.
+  - **Tried and dropped:** holding China's gas once its shortage has lasted long enough to pay for a tank (-0 to
+    -25 bn per episode), `premium_limit` next to the five (nothing on the whole set).
+  - **A correction to how the score pools:** it is the sum of weight times mean saving over the sum of weight times
+    mean attainable, not the weighted mean of the levels' ratios.
+  - The rules overlap with v10's two and came from reading these three sets, so they are being rebuilt on v10 as
+    v11 (not committed yet) and need the untouched roots to confirm them; Small has not been played.
+- **A small fuel outbids the scarce one on a shared edge (2026-10-09, on v10; follows from the analysis above).**
+  - **The mechanism.** Two of the three edges into Korea's terminal carry gas and crude. Korea burns 2,750 GWh of
+    gas and 220 of crude a week and its fabs draw 456, so crude is a "small" fuel, and `premium_small` prices its
+    shortfall over the fabs' draw: 33.7 M USD per GWh against 5.6 for gas, in every window week. Over weeks 1 to 90
+    of the 13 Korea-starved episodes a shared edge is at capacity in 992 of 1,170 weeks, and crude takes 156 to 228
+    GWh of it: its segment runs at 0.64 to 1.00 while gas runs at 0.05 to 0.63, with gas waiting at the strait
+    (1,370 GWh at Malacca for 84 weeks in one episode). Taiwan's Panama edge has the same split; no other grid
+    with fabs has an edge shared by two fuels.
+  - **The rule (`premium_whole`, in `reserve.py`).** A small fuel is fab energy only in a whole week, and under the
+    pulse the weeks that are not whole are the share of its burn a big fuel is short by. So the small fuel's
+    shortfall is free up to that share of its own burn: one LP column per grid and small fuel, priced at minus the
+    fuel's premium, bounded each window week by the fuel's own shortfall and by the other fuels' shortfalls scaled
+    by the ratio of shares. It reads the plan's own shortfalls; no forecast, memory or setting. In one episode the
+    plan on the Taiwan edge moves from 216 gas and 220 crude a week to 449 and 36, equal shares of burn.
+  - **It pays only with a hold of the small fuel in the pulse.** v10's pulse holds a small fuel only in a week it
+    is short of a week's burn; otherwise the planner's flow stands and is burnt at once, the week before a whole
+    week too (57 % of the crude burnt outside whole weeks, and whole weeks found 0.82 of their crude). Five lines
+    in `Pulse.adjust` hold a small fuel whose arrivals are below its burn in a week that is not whole.
+
+  | Against v10 | LP rule alone | Hold alone | Both |
+  | --- | --- | --- | --- |
+  | Full, 64 episodes (roots 12345, 2026, 777) | +0.0012 (+0.0002 to +0.0022) | +0.0018 (+0.0009 to +0.0027) | +0.0045 (+0.0028 to +0.0062), 40 better / 24 worse |
+  | Small, 128 episodes (roots 12345, 2026) | -0.0009 (-0.0021 to +0.0003) | +0.0007 (+0.0003 to +0.0013) | +0.0027 (+0.0016 to +0.0040), 62 / 66 |
+
+  One form of each piece was built and neither was altered. Capping crude into Korea at a fixed share of its burn
+  by hand did not work (+116 bn over nine starved episodes at 0.30, -1 at 0.15): a fixed share is wrong wherever
+  the gas share differs from it. Of the pair's 934 bn on Full, 705 are in the 13 starved episodes. The largest
+  loser is -28 bn in one Full episode. CPU per week rises by 5 % in the mean. Both pieces go into v11, and like the
+  five rules above they still need the untouched roots: a second untouched Full set, root 5150 (32 episodes), was
+  built for that (v10 scores 0.8949 on it).
 
 ## Reproducing a number
 

@@ -1,0 +1,11 @@
+{
+ "open_hold": false,
+ "wafers_fit": false,
+ "end_value": 1.0,
+ "reserve_weeks": 4.0,
+ "reserve_feeders": false,
+ "pulse_partial": 1.0,
+ "pulse_payback": 0.0,
+ "pulse_tail": 0,
+ "rules": {"port_stoppage": {"first": "open"}, "port_slowdown": {"mode": "keep"}}
+}

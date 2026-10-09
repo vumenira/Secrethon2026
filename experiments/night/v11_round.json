@@ -1,0 +1,4 @@
+{"v10b": {"base": "mpc_pulse_rec_v10b", "params": {}},
+ "v10b_pay0": {"base": "mpc_pulse_rec_v10b", "params": {"pulse_payback": 0.0}},
+ "v10b_partial07": {"base": "mpc_pulse_rec_v10b", "params": {"pulse_partial": 0.7}},
+ "v10b_hold40": {"base": "mpc_pulse_rec_v10b", "params": {"pulse_hold_weeks": 40.0}}}

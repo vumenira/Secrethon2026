@@ -1,0 +1,7 @@
+{
+  "v10_off2": {"base": "mpc_pulse_rec_v10b_x", "params": {}},
+  "v10_cap26": {"base": "mpc_pulse_rec_v10b_x", "params": {"fuel_cover_cap": 26.0}},
+  "v10_cap13": {"base": "mpc_pulse_rec_v10b_x", "params": {"fuel_cover_cap": 13.0}},
+  "v10_cap20": {"base": "mpc_pulse_rec_v10b_x", "params": {"fuel_cover_cap": 20.0}},
+  "v10_cap39": {"base": "mpc_pulse_rec_v10b_x", "params": {"fuel_cover_cap": 39.0}}
+}

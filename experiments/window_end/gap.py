@@ -46,6 +46,10 @@ def one(agent, task, entropy, n, out):
         "shed": [r.shed.tolist() for r in traj.records],
         "lots": [r.lots_started.tolist() for r in traj.records],
         "energy": [r.energy.tolist() for r in traj.records],
+        "lost": [r.lost.tolist() for r in traj.records],  # demand not served, per demand ordinal
+        # end-of-week stock per slot summed over the episode (holding = slot holding rate x stock, every week)
+        "stock_sum": np.sum([r.stock for r in traj.records], axis=0).tolist(),
+        "demand": [r.demand.tolist() for r in traj.records],
         "wafers": [[float(r.stock[s]) for s in wafer_slots] for r in traj.records],  # end of week, at each fab
         "J": traj.J_cents / 100,
     }
@@ -54,6 +58,8 @@ def one(agent, task, entropy, n, out):
     weekly, _, _, _ = _terms(model, res.x)
     T = model.T
     shed, lots, energy = np.zeros((T, G)), np.zeros((T, F)), np.zeros((T, F))
+    lost = np.zeros((T, len(inst.demands)))
+    stock_sum = np.zeros(len(inst.stock_slots))
     for j, key in enumerate(model.keys):
         if key[0] == "ysh":
             shed[key[1] - 1, key[2]] += res.x[j]
@@ -61,11 +67,17 @@ def one(agent, task, entropy, n, out):
             lots[key[1] - 1, key[2]] += res.x[j]
         elif key[0] == "E":
             energy[key[1] - 1, key[2]] += res.x[j]
+        elif key[0] == "U":
+            lost[key[1] - 1, key[2]] += res.x[j]
+        elif key[0] == "I":
+            stock_sum[key[2]] += res.x[j]
     oracle = {
         "parts": [[float(np.sum(w.get(c, []))) for c in COMPS] for w in weekly],
         "shed": shed.tolist(),
         "lots": lots.tolist(),
         "energy": energy.tolist(),
+        "lost": lost.tolist(),
+        "stock_sum": stock_sum.tolist(),
         "J": res.J_cents / 100 if res.J_cents is not None else None,
     }
     events = [
@@ -94,10 +106,10 @@ def report(agent="mpc_pulse_rec_v8_on", task="small", entropy=12345):
         {
             r["episode"]: r
             for r in json.loads(
-                (ROOT / "outputs" / "recovery_tune" / f"{task}-e{entropy}-n64" / "references.json").read_text()
+                (ROOT / "outputs" / "recovery_tune" / f"{task}-e{entropy}-n{len(list(out.glob('*.json')))}" / "references.json").read_text()
             )
         }
-        if (ROOT / "outputs" / "recovery_tune" / f"{task}-e{entropy}-n64" / "references.json").exists()
+        if (ROOT / "outputs" / "recovery_tune" / f"{task}-e{entropy}-n{len(list(out.glob('*.json')))}" / "references.json").exists()
         else {}
     )
     ours = np.array([np.sum(e["ours"]["parts"], axis=0) for e in eps])

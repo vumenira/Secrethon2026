@@ -1,0 +1,2 @@
+{"v10_sync_hold18": {"base": "mpc_pulse_rec_v10b_x", "params": {"pulse_sync": true, "pulse_hold_weeks": 18.0}},
+ "v10_sync_hold26": {"base": "mpc_pulse_rec_v10b_x", "params": {"pulse_sync": true, "pulse_hold_weeks": 26.0}}}

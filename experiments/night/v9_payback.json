@@ -1,0 +1,5 @@
+{
+  "v9_pay24": {"base": "mpc_pulse_rec_v9", "params": {"pulse_payback": 24.0}},
+  "v9_pay48": {"base": "mpc_pulse_rec_v9", "params": {"pulse_payback": 48.0}},
+  "v9_pay0": {"base": "mpc_pulse_rec_v9", "params": {"pulse_payback": 0.0}}
+}

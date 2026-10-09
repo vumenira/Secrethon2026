@@ -1,0 +1,6 @@
+{
+  "v10_ohshare05": {"base": "mpc_pulse_rec_v10b_x", "params": {"open_hold_share": 0.5}},
+  "v10_ohshare075": {"base": "mpc_pulse_rec_v10b_x", "params": {"open_hold_share": 0.75}},
+  "v10_ohshare025": {"base": "mpc_pulse_rec_v10b_x", "params": {"open_hold_share": 0.25}},
+  "v10_ohoff": {"base": "mpc_pulse_rec_v10b_x", "params": {"open_hold": false}}
+}

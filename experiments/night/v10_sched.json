@@ -1,0 +1,8 @@
+{
+  "v10_off": {"base": "mpc_pulse_rec_v10b_x", "params": {}},
+  "v10_thrwait": {"base": "mpc_pulse_rec_v10b_x", "params": {"schedule_thr_wait": true}},
+  "v10_thrwait_run2": {"base": "mpc_pulse_rec_v10b_x", "params": {"schedule_thr_wait": true, "pulse_run": 2.0}},
+  "v10_waf05": {"base": "mpc_pulse_rec_v10b_x", "params": {"schedule_wafers": 0.5}},
+  "v10_waf08": {"base": "mpc_pulse_rec_v10b_x", "params": {"schedule_wafers": 0.8}},
+  "v10_thr_waf05": {"base": "mpc_pulse_rec_v10b_x", "params": {"schedule_thr_wait": true, "schedule_wafers": 0.5}}
+}

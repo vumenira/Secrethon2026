@@ -1,0 +1,1 @@
+{"v10_sh26_scarce": {"base": "mpc_pulse_rec_v10b_x", "params": {"pulse_sync": true, "pulse_hold_weeks": 26.0, "pulse_hold_scarce": true}}}

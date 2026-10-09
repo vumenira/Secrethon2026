@@ -1,0 +1,2 @@
+{"v10c": {"base": "mpc_pulse_rec_v10b", "params": {}},
+ "v10c_asv9": {"base": "mpc_pulse_rec_v10b", "params": {"pulse_sync": false, "pulse_hold_scarce": false, "pulse_hold_weeks": 12.0, "pulse_payback": 12.0}}}

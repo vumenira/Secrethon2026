@@ -1,0 +1,6 @@
+{
+  "v10_off3": {"base": "mpc_pulse_rec_v10b_x", "params": {}},
+  "v10_slow80": {"base": "mpc_pulse_rec_v10b_x", "params": {"reserve_slow_weeks": 80.0}},
+  "v10_slow60": {"base": "mpc_pulse_rec_v10b_x", "params": {"reserve_slow_weeks": 60.0}},
+  "v10_slow104": {"base": "mpc_pulse_rec_v10b_x", "params": {"reserve_slow_weeks": 104.0}}
+}

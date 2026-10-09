@@ -1,0 +1,3 @@
+{"v10b": {"base": "mpc_pulse_rec_v10b", "params": {}},
+ "v10b_pay0": {"base": "mpc_pulse_rec_v10b", "params": {"pulse_payback": 0.0}},
+ "v10b_pay48": {"base": "mpc_pulse_rec_v10b", "params": {"pulse_payback": 48.0}}}

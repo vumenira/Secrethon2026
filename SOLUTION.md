@@ -2,8 +2,10 @@
 
 Українською: [SOLUTION.uk.md](SOLUTION.uk.md)
 
-**The agent to submit is `agents/mpc_pulse_rec_v10`.** Its predecessor v9 scores 0.8827 on the public board (Small)
-and a snapshot of v10 taken while it was being built scores 0.8854; the final v10 has not been uploaded yet. It is the
+**The agent to submit is `agents/mpc_pulse_rec_v11`.** It has not been uploaded yet; the best upload so far is a
+snapshot of v10 (`agents/mpc_pulse_rec_v10_on`), 0.8854 on the public board (Small), and v9 scores 0.8827 there.
+`agents/mpc_pulse_rec_v12` is the next candidate: three more pieces merged on v11, measured only on the episodes they
+were found on (see "What is left"). It is the
 benchmark's own rolling LP planner with a handful of rules added, each found by measuring where the planner loses
 money. It has no learned parts, reads no warnings or announcements, and uses about a quarter of the CPU limit.
 
@@ -28,17 +30,20 @@ Each row adds to the one above. The two middle columns are local scores on episo
 | + gas trimmed in slack weeks, unburnable fuel not shipped | 0.865 | 0.882 | 0.8714 |
 | + trim for other fuels, opening hold | 0.874 | 0.886 | 0.8768 |
 | + runs of full weeks start sooner and end cleanly (v9) | 0.877 | 0.894 | 0.8827 |
-| + a full week needs every fuel; the stand-down test counts as the simulator does (v10, the final agent) | 0.880 | 0.898 | 0.8854 (a snapshot) |
+| + a full week needs every fuel; the stand-down test counts as the simulator does (v10) | 0.880 | 0.898 | 0.8854 (a snapshot) |
+| + scarce fuels wait together; a small fuel no longer outbids the scarce one on a shared route (v11, the final agent) | 0.886 | 0.905 | not uploaded |
 
-- **The private board plays Full.** Locally the final agent scores 0.85 to 0.90 there depending on the episode set
-  (0.851, 0.872 and 0.898 on the three sets used during development, 0.902 and 0.895 on two sets nothing was ever
-  chosen on), so expect about the same as on Small.
-- **The gains are real on untouched episodes.** A set built at the end and played once per agent shows v9 over the
+- **The private board plays Full.** Locally the final agent scores 0.86 to 0.91 there depending on the episode set
+  (0.860, 0.884 and 0.905 on the three sets used during development, 0.907 and 0.903 on two sets nothing was ever
+  chosen on), so expect about the same as on Small or a little more.
+- **The gains are real on untouched episodes.** Sets built at the end and played once per agent show v9 over the
   early v2 at +0.039 on Small (the same as on the sets we tuned on) and +0.020 on Full (+0.028 on the two oldest
-  sets, so a quarter of that was luck), and v10 over v9 at +0.003 on Small and +0.001 on Full.
+  sets, so a quarter of that was luck), v10 over v9 at +0.003 on Small and +0.001 on Full, and v11 over v10 at
+  +0.006 on Full (64 episodes; +0.009 on the sets its rules were found on). On Small the untouched set cannot tell
+  v11 from v10 (+0.001), so the public board will show little of it.
 - **No week fell back to the naive rule** in any upload or local play.
-- **CPU:** `sbf check` under Linux passes. The slowest week is the first: about 0.2 to 0.4 s of 2 s on Small, and on
-  Full 1.0 s of 4 s on a quiet machine and 2.2 s with other plays loading it.
+- **CPU:** `sbf check` under Linux passes. The slowest week is the first: 0.24 s of 2 s on Small and 1.07 s of 4 s on
+  Full on a quiet machine (about twice that with other plays loading it).
 
 ## Why these rules: three things we measured
 
@@ -78,6 +83,10 @@ stays as observed, and sends the first week's flows. Around that:
   held in weeks 2 to 4 at grids the first plan already expects to run short (helps on Small only); a run of full
   weeks starts as soon as one can follow, and its last week is delivered only what it burns (helps most on Full);
   a week counts as full only if every fuel at the grid is there, not just the rationed one (v10).
+- **Two short fuels and shared routes (v11),** from an analysis of the worst Full episodes: while a grid waits for
+  one scarce fuel its other scarce fuels wait at their terminals too, instead of burning for base load; the pulse
+  keeps holding through an energy shock; and on a route two fuels share, the planner no longer pays for a small
+  fuel beyond what the scarce one lets the fabs use. +0.006 on untouched Full episodes.
 
 Every rule is a setting in `PARAMS` of `agent.py`, computed from the instance and the observation (no grid or fuel is
 named in code), and wrapped so that a failure falls back to the planner's own flows.
@@ -126,10 +135,10 @@ named in code), and wrapped so that a failure falls back to the planner's own fl
 
 ```bash
 uv sync
-uv run sbf evaluate mpc_pulse_rec_v10 --task=small       # the 20 dev episodes
-uv run sbf compare mpc_pulse_rec_v10 mpc_det_h20 --task=small
-uv run sbf check mpc_pulse_rec_v10 --task=full           # needs Linux; on Windows use scripts/wsl_check.sh
-uv run sbf upload mpc_pulse_rec_v10 --dry_run            # then without --dry_run: one of the day's 3 submissions
+uv run sbf evaluate mpc_pulse_rec_v11 --task=small       # the 20 dev episodes
+uv run sbf compare mpc_pulse_rec_v11 mpc_det_h20 --task=small
+uv run sbf check mpc_pulse_rec_v11 --task=full           # needs Linux; on Windows use scripts/wsl_check.sh
+uv run sbf upload mpc_pulse_rec_v11 --dry_run            # then without --dry_run: one of the day's 3 submissions
 ```
 
 On native Windows, `sbf evaluate` and `sbf compare` stop on a missing Unix module unless two stand-in files,
@@ -140,7 +149,10 @@ On native Windows, `sbf evaluate` and `sbf compare` stop on a missing Unix modul
 
 | Path | What |
 | --- | --- |
-| `agents/mpc_pulse_rec_v10/` | the final agent: `agent.py` (settings, glue), `pulse.py`, `reserve.py`, `recovery.py`, `sbflow/` (the vendored planner) |
+| `agents/mpc_pulse_rec_v11/` | the final agent: `agent.py` (settings, glue), `pulse.py`, `reserve.py`, `recovery.py`, `sbflow/` (the vendored planner) |
+| `agents/mpc_pulse_rec_v12/` | the next candidate: v11 with the three pieces below merged; not confirmed on untouched episodes yet |
+| `agents/mpc_pulse_rec_v12a/`, `v12b/`, `v12c/` | the three pieces as they were built and measured on v11: two rules for grids the pulse stood down at (a), two checks on v11's own rules (b), a limit on fuel bought on a tariffed route (c) |
+| `agents/mpc_pulse_rec_v10/`, `agents/mpc_pulse_rec_v10_on/` | v10, and the snapshot of it that was uploaded (0.8854): an earlier form of one rule and two switches the final v10 leaves off, set through its `params.json` |
 | `agents/mpc_det_h20/` | the baseline every comparison is against |
 | `experiments/pulse_agent/README.md` | the full log: every version, table and dropped idea |
 | `experiments/pulse_agent/versions/` | every earlier version, runnable, with an index |
@@ -156,11 +168,15 @@ calm ones, which carry half the weight. An analysis of the twelve worst (2026-10
 - **It is Korea.** In 11 of the 12 its grid gets a fraction of the gas it burns for most of the episode, because its
   main gas route is banned from week 1 and a strait route is cut. At least 55 % of that loss is closed to any agent:
   the clairvoyant plan runs Korea's fabs by shedding base load, which the simulator does not allow.
-- **Two things are recoverable and are being built as v11** (measured on the sets they were found on, not yet
-  confirmed on untouched episodes, so not in the agent above):
-  - five pulse rules for grids with two short fuels or a trickle of fuel: +0.009 on Full over v9;
-  - a small fuel no longer outbids the scarce one on a route they share, with a matching hold in the pulse: +0.0045
-    on Full and +0.003 on Small over v10.
+- **Two things were recoverable and are v11:** five pulse rules for grids with two short fuels or a trickle of
+  fuel, and a small fuel no longer outbidding the scarce one on a route they share. Together +0.009 on the sets
+  they were found on and +0.006 on 64 untouched Full episodes.
+- **Three more pieces are merged as `agents/mpc_pulse_rec_v12` and still need the untouched test** (each measured
+  against v11 on the sets it was found on, so these numbers are optimistic):
+  - fuel that reaches a grid by pipe is held at the supply node and shipped in whole weeks, and a fuel not worth a
+    full tank is held up to one charge: +0.009 on Full, nothing on Small (no grid there qualifies);
+  - two of v11's rules no longer hold fuel for a week that does not need it: +0.001 on Small, +0.0003 on Full;
+  - nuclear fuel is not over-bought on a route that pays a tariff: +0.0007 on Full, no episode worse.
 - **Everything else measured that day is small or closed:** costs other than shortages are 0.007 of the 0.105 gap,
   and foresight inside the 20-week window is worth about +0.015 at most.
 

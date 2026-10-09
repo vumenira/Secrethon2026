@@ -36,7 +36,9 @@ itself is the `shockbench-flow` package from PyPI (`>= 0.1.2` in
 
 ```
 agents/<name>/     # one submission folder per agent: agent.py and the files it loads (weights are committed)
-                   #   ours: mpc_pulse_rec_v10 (the agent to submit; SOLUTION.md), mpc_det_h20 (the baseline)
+                   #   ours: mpc_pulse_rec_v11 (the agent to submit; SOLUTION.md), mpc_pulse_rec_v12 (the next candidate,
+                   #   not yet confirmed on untouched episodes) and its three pieces v12a, v12b, v12c, mpc_pulse_rec_v10
+                   #   and mpc_pulse_rec_v10_on (the upload with 0.8854), mpc_det_h20 (the baseline)
                    #   shipped: template (send the maximum), random, heuristic (reads params.json if present)
 examples/          # 01_quickstart.py ... 07_dashboard.py, each self-contained; ppo_agent.py is the PPO submission's agent.py
 src/sbf_starter/   # the `sbf` CLI (cli.py), scoring.py, check.py (isolated timed run), container.py (--docker),

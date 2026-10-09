@@ -2,15 +2,16 @@
 
 This is the detailed log behind our agent. For the short version, read [SOLUTION.md](../../SOLUTION.md) first.
 
-- **The final agent is `agents/mpc_pulse_rec_v10`** (a snapshot of it scored 0.8854 on the public board, its
-  predecessor v9 0.8827). Every earlier version is kept, runnable, under `versions/<name>` beside this file
+- **The final agent is `agents/mpc_pulse_rec_v11`** (confirmed on untouched Full episodes, not uploaded; the best
+  upload is `agents/mpc_pulse_rec_v10_on`, 0.8854 on the public board). `agents/mpc_pulse_rec_v12` is the next
+  candidate, not confirmed yet. Every earlier version is kept, runnable, under `versions/<name>` beside this file
   (`experiments/pulse_agent/versions/`); a version named below without a path is one of those folders.
 - **Part one** (down to "Risks and limits") describes the first version, `versions/ft_buffer`: the benchmark's rolling LP
   planner with a value for goods at the window's end, a fuel reserve at grids, a "pulse" that delivers scarce fuel in
   whole weeks so fabs can run, and a price that sends scarce fuel to the grid that loses most. It reads no warnings and
   no announcements and has no learned parts. Uploaded on 2026-10-06, it scored 0.8289.
-- **Part two** ("Later versions") adds one entry per version, v2 to v10, each with what it changed, what was measured
-  and what was dropped, and the analyses of 2026-10-09 that v11 is being built from.
+- **Part two** ("Later versions") adds one entry per version, v2 to v11, each with what it changed, what was measured
+  and what was dropped, the analyses of 2026-10-09 behind v11, and the three pieces merged as v12.
 - **The code explains itself** in module docstrings: `agent.py` (overview, every setting commented in `PARAMS`),
   `pulse.py` (the pulse and the rules after it), `reserve.py` (the LP changes, with formulas), `recovery.py` (the
   forecast).
@@ -534,7 +535,7 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   of the fuels rule was changed once after its first scored round, from traces of three losing tuning episodes; the
   fresh and untouched sets were played once, after that. On Full 12345 three episodes carry +0.0016 of the +0.0018.
   CPU per week on Full is unchanged (mean 0.27 s, slowest about 1.0 s in the same process as v9).
-  `versions/mpc_pulse_rec_v10_on` is a snapshot from the evening before (the first form of the fuels rule, all four
+  `agents/mpc_pulse_rec_v10_on` is a snapshot from the evening before (the first form of the fuels rule, all four
   switches on through a `params.json`): **uploaded on 2026-10-09, 0.8854 on the public board.**
 - **Why the worst Full episodes are worse (analysis of 2026-10-09, on v9; roots 12345, 2026 and 777).** The twelve
   worst of the 64 episodes (per-episode score 0.53 to 0.81) were recorded and compared with the clairvoyant plan,
@@ -554,7 +555,7 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   - **Foresight is not what is missing there:** the true network in all 20 window weeks recovers 6 % of the
     twelve's loss, and next to nothing in the four worst.
   - **What is reachable is the pulse's handling of grids with two short fuels or a trickle.** Five rules without a
-    tuned number, play-tested in a working copy of v9 (not committed), gained +0.0086 on the 64 Full
+    tuned number, play-tested in a copy of v9 (`versions/mpc_pulse_rec_v9_tail`), gained +0.0086 on the 64 Full
     episodes (+0.0059 to +0.0116; 48 episodes better, 16 worse), more than half of it in ordinary episodes:
     - **sync** (half the gain): in a week that is not whole, also hold every fuel that could run in full, so it is
       not burnt for base load while the week waits for the other fuel; charge the gas only if the other fuels will
@@ -570,8 +571,8 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
     -25 bn per episode), `premium_limit` next to the five (nothing on the whole set).
   - **A correction to how the score pools:** it is the sum of weight times mean saving over the sum of weight times
     mean attainable, not the weighted mean of the levels' ratios.
-  - The rules overlap with v10's two and came from reading these three sets, so they are being rebuilt on v10 as
-    v11 (not committed yet) and need the untouched roots to confirm them; Small has not been played.
+  - The rules overlap with v10's two and came from reading these three sets, so they were rebuilt on v10 as v11
+    (below) and confirmed on the untouched roots.
 - **A small fuel outbids the scarce one on a shared edge (2026-10-09, on v10; follows from the analysis above).**
   - **The mechanism.** Two of the three edges into Korea's terminal carry gas and crude. Korea burns 2,750 GWh of
     gas and 220 of crude a week and its fabs draw 456, so crude is a "small" fuel, and `premium_small` prices its
@@ -602,6 +603,116 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   loser is -28 bn in one Full episode. CPU per week rises by 5 % in the mean. Both pieces go into v11, and like the
   five rules above they still need the untouched roots: a second untouched Full set, root 5150 (32 episodes), was
   built for that (v10 scores 0.8949 on it).
+- **v11, `agents/mpc_pulse_rec_v11`, confirmed on Full (2026-10-09):** v10 plus the rules of the two entries above,
+  seven switches, none with a setting of its own.
+  - **From the worst-episode analysis (stage one), in `pulse.py`:**
+    - `hold_together`: in a week that is not whole, also hold the other scarce fuels that could run in full (the
+      "sync" rule's hold; its charge timing was dropped in favour of v10's `schedule_fuels`).
+    - `shock_hold`: keep holding through an energy shock at a pulsed grid.
+    - `schedule_ends`: `schedule`'s end-of-run test also at a grid that no longer counts as pulsed, so long runs do
+      not end with a partial week and a dead week.
+    - `schedule_runs`: where the threshold exceeds a week's burn, wait until the tank carries as long a run as the
+      terminal's storage holds (it differs from `schedule_left`, which waits `pulse_run` weeks and stays off).
+    - `pulse_hold_sales`: a tank may take as long as lots can still be sold. Thin evidence: +0.0004 on Full next
+      to the pair (+0.0001 to +0.0008), most of it one episode; nothing on Small.
+    - The "lack" rule turned out to be v10's `schedule_hold`, whose form is the more exact one; nothing was added.
+  - **From the shared-edge analysis (stage two):** `premium_whole` in `reserve.py` and `hold_small` in `pulse.py`,
+    on or off together.
+  - **Leave one out, stage one, on Full roots 12345 and 777 as one (48 episodes):** `hold_together` +0.0029
+    (+0.0014 to +0.0046), `schedule_ends` +0.0023 (+0.0009 to +0.0040), `shock_hold` +0.0014 (+0.0005 to +0.0025),
+    `schedule_runs` +0.0004 (-0.0000 to +0.0009), `pulse_hold_sales` +0.0001 (-0.0000 to +0.0004).
+
+  | Set | `mpc_pulse_rec_v10` | `mpc_pulse_rec_v11` | Difference (90 % interval) | Better / worse |
+  | --- | --- | --- | --- | --- |
+  | Full 12345 (rules found here) | 0.8718 | 0.8835 | +0.0116 (+0.0059 to +0.0173) | 10 / 6 |
+  | Full 2026 (rules found here) | 0.8977 | 0.9052 | +0.0075 (+0.0047 to +0.0104) | 13 / 3 |
+  | Full 777 (rules found here, 32 episodes) | 0.8509 | 0.8597 | +0.0088 (+0.0052 to +0.0123) | 24 / 8 |
+  | **Full 9001 (untouched, 32 episodes)** | 0.9020 | 0.9069 | +0.0049 (+0.0022 to +0.0078) | 23 / 9 |
+  | **Full 5150 (untouched, 32 episodes)** | 0.8949 | 0.9034 | +0.0085 (+0.0047 to +0.0127) | 21 / 11 |
+  | **Full, the two untouched sets as one (64)** | 0.8988 | 0.9050 | +0.0062 (+0.0041 to +0.0086) | 44 / 20 |
+  | Small 12345 and 2026 as one (128) | 0.8831 | 0.8885 | +0.0054 (+0.0037 to +0.0071) | 69 / 59 |
+  | **Small 9001 (untouched)** | 0.8922 | 0.8930 | +0.0008 (-0.0023 to +0.0037) | 38 / 26 |
+
+  - **On Full two thirds of the gain holds on untouched episodes** (+0.0062 against +0.0093 on the 64 episodes the
+    rules were found on); stage one and stage two each give about half of it there. The largest loss on the
+    untouched Full sets is 18 bn USD in an episode, the largest gain 136.
+  - **On Small the untouched set cannot tell v11 from v10.** One episode loses 69 bn there, four times the largest
+    loss seen on the Small sets the rules were measured on (17 bn); it was not opened, to keep the set untouched.
+    Against v9 on the same set v11 is +0.0040 (+0.0002 to +0.0075).
+  - With all seven switches off v11 reproduces v10 to the cent on all 16 Full and 64 Small tuning episodes; the
+    plays that ran during a memory incident on 2026-10-09 (the solver failing with the machine out of commit) were
+    replayed and are equal to the cent, and every measurement play was made with failures raising.
+  - `sbf check mpc_pulse_rec_v11` passes under Ubuntu on a quiet machine: slowest week 0.24 s of 2 s on Small, 1.07
+    s of 4 s on Full (median 0.30 s). In the same process as v10 the mean week on Full costs 3 % more.
+  - Losing episodes on the sets used: about 25 bn in three Full episodes (one of them from `shock_hold`), up to 17
+    bn on Small. None was traced week by week.
+- **Nuclear fuel on a tariffed route (`fuel_cancel_tariff`, 2026-10-09, on v11).** The safe form of the purchase
+  rules costed that morning: a dispatch from a source straight into a grid on a route that pays a tariff this week
+  is cut so that stock, fuel under way and the dispatch do not exceed what the grid would lack to the episode's end
+  if its largest route were cut from next week on. Against v11 on the 64 Full episodes of roots 12345, 2026 and 777:
+  +0.0007 (+0.0004 to +0.0009), 34 episodes better, none worse, 30 equal to the cent; 143 bn saved, within 1.2 bn
+  of the ledger's prediction. On Small every episode is equal to the cent (each nuclear grid there has one route).
+- **Why v11 sometimes loses 20 to 40 bn in a Small episode (2026-10-09; a Small set of our own, root 6006, 128
+  episodes).** On that set v11 is +0.0039 over v10 (+0.0018 to +0.0060), 64 episodes better and 64 worse; four
+  lose more than 25 bn. There is no single cause: three of v11's rules each hold fuel, or end a run, for a whole
+  week that does not need it.
+  - **`hold_together` holds the rationed fuel while the grid waits for another (fixed, check "together").** At
+    Japan crude reached the terminal at a ninth of its burn while gas arrived as fast as it burnt; the gas was
+    held, its stock burnt down and the next delivery was a charge in a dark week: a dark gas week every second
+    week until the tank was full, for gas that was never needed. `schedule_fuels` had just decided the same gas
+    could run through to the crude's week. The check applies that test in the week `hold_together` would hold.
+    Not specific to Small: it is `hold_together`'s known 35 bn loss in a Full episode too.
+  - **`shock_hold` holds a tank through a shock that outlasts the sellable weeks (fixed, check "shock").** A fuel
+    is now held only while the grid and its terminal hold less than the sellable weeks left can burn beyond
+    their own arrivals. Small has 36 sellable weeks against 88 on Full, so a shock reaches the end far more often.
+  - **`schedule_ends` ends a run that was not ending (diagnosed, not fixed).** Its test asks whether next week's
+    segment can run in full, which a whole week needs only when the fabs draw their capacity; at a grid whose
+    fabs were wafer-limited the test failed every twelve weeks and cost a dark week each time. A check for it
+    took 43 bn off the eight episodes it was read from and added 97 in six others, and was left off.
+  - **Not fixed either:** `schedule_runs` waiting 30 weeks for a three-week run the tank could never carry, and
+    a shift of scarce wafers between fabs under the pair in one episode (not traced).
+
+  | Checks "together" and "shock" against v11 | Difference (90 % interval) | Better / worse | Worst episode |
+  | --- | --- | --- | --- |
+  | Small 6006 (128), the set they were built on | +0.0010 (+0.0004 to +0.0018) | 20 / 11 | 3.6 bn |
+  | Small 12345 and 2026 as one (128) | +0.0007 (+0.0001 to +0.0013) | 12 / 6 | 3.4 bn |
+  | Full 12345, 2026 and 777 as one (64) | +0.0003 (+0.0001 to +0.0005) | 16 / 2 | 0.7 bn |
+
+  It trims the tail and moves the score little. On the analysis set the largest loss against v10 falls from 39 to
+  26 bn. The episode that loses 69 bn on the untouched Small set was never opened. Built as `hold_checks` in
+  `agents/mpc_pulse_rec_v12b`.
+- **A second pass over what v11 loses on Full (2026-10-09; `agents/mpc_pulse_rec_v12a`).** Two rules for a grid the
+  pulse stood down at because a short fuel "cannot be held"; neither has a setting of its own. The numbers are from
+  the cached plays; the builder's own report was cut off by a session restart and is still to be written up here.
+  - **`pipe_pulse`.** The first pass called a fuel that comes straight from a source unreachable. But a supply
+    node is a tank too: the simulator refills it each week up to its storage and keeps what is not shipped. So a
+    fuel that reaches a grid from a supply node over an edge one week long can wait there as a terminal's fuel
+    waits at the terminal, with its delivery decided a week ahead. Where such a pipe carried 0.72 of a week's gas
+    the grid shed the difference every week and its fabs stood dark for 95 of 104 weeks in one episode. With the
+    rule the pipes hold back what the next charge takes and ship the charge, then a week's burn at a time, once a
+    whole week can follow. +0.0070 on the 64 Full episodes (+0.0045 to +0.0097), 28 better and 5 worse.
+  - **`lean_hold`.** `pulse_payback` leaves a fuel out when whole weeks do not pay for a full tank of it, and a
+    grid short of such a fuel was not pulsed at all. A pulse does not need a full tank: the fuel is held up to
+    one charge, and only if whole weeks pay for that. +0.0021 on top (+0.0009 to +0.0034), 14 better and 5 worse;
+    its largest loss is 46 bn, an episode where the chips of the whole weeks it made were not short.
+
+  | Both rules against v11 | Difference (90 % interval) | Better / worse |
+  | --- | --- | --- |
+  | Full 12345 (16) | +0.0090 (+0.0024 to +0.0154) | 9 / 4 |
+  | Full 2026 (16) | +0.0069 (+0.0042 to +0.0101) | 9 / 0 |
+  | Full 777 (32) | +0.0097 (+0.0062 to +0.0136) | 21 / 2 |
+  | Full, the three as one (64) | +0.0091 (+0.0066 to +0.0120) | 39 / 6 |
+  | Small 12345 and 2026 (128) | equal to the cent in every episode | 0 / 0 |
+
+  On Small no pipe can carry a charge and one charge pays at no grid, so neither rule acts there. These three
+  sets are where the rules were found, through three revisions of the folder; nothing is confirmed yet.
+- **v12, `agents/mpc_pulse_rec_v12` (2026-10-09, merged, not confirmed).** v11 with the three pieces above merged
+  into `pulse.py` and `agent.py` by a three-way merge on v11: `pipe_pulse` and `lean_hold` (v12a), `hold_checks`
+  with "together" and "shock" (v12b), `fuel_cancel_tariff` (v12c). The three folders are kept beside it as they
+  were measured. The six merge conflicts were two pieces adding text or code at the same place, and both sides
+  were kept. With all four new switches off the merged folder reproduces v11 to the cent on all 16 episodes of
+  Full 12345. Still to do when this was committed: each piece alone against its own measured play, the pieces
+  together, the untouched roots (Full 9001 and 5150, Small 9001) and `sbf check`.
 
 ## Reproducing a number
 

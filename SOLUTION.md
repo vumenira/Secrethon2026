@@ -8,7 +8,9 @@ benchmark's own rolling LP planner with a handful of rules added, each found by 
 money. It has no learned parts, reads no warnings or announcements, and uses about a quarter of the CPU limit.
 
 This page is the short version. Every measurement is in
-[experiments/pulse_agent/README.md](experiments/pulse_agent/README.md).
+[experiments/pulse_agent/README.md](experiments/pulse_agent/README.md). The experiments after v8 (window length, end value,
+settings sweeps, the cost gap against the clairvoyant plan) are in
+[experiments/window_end/README.md](experiments/window_end/README.md).
 
 ## What it scores
 
@@ -111,6 +113,9 @@ named in code), and wrapped so that a failure falls back to the planner's own fl
 | A premium on a grid's scarcest fuel only | no gain on fresh episodes |
 | Not sending chips into full packaging plants | -0.0001 |
 | Demand and throughput safety scales | +0.003 at most |
+| A longer or shorter window on v8 (12 to 48 weeks) | -0.0004 (24) to -0.016 (48), -0.003 (16); 20 is the optimum |
+| Leftovers valued above salvage at the episode's end; a tapered window-end value | -0.0013 to -0.0019; neutral |
+| Sweeps of 27 settings (Small) and 13 (Full) on v8 | best `pulse_run` 6, +0.0005 over 8 sets; board 0.8767 (`mpc_pulse_rec_v9b`) |
 | Reading warnings and announcements, re-measured on Full with the pulse | every event start known perfectly is about +0.007 |
 | A schedule for the end of sales | +0.0001 |
 | Releasing a war's second-stage cut on its known week | +0.0001 on Full |

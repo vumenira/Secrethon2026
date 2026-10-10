@@ -1,0 +1,9 @@
+{
+ "t_v10": {"base": "mpc_pulse_rec_v10", "params": {}},
+ "t_v10_on": {"base": "mpc_pulse_rec_v10_on", "params": {"schedule_left": true, "schedule_wafers": true, "schedule_hold": true, "schedule_fuels": true}},
+ "t_v9_safe": {"base": "mpc_pulse_rec_v9_safe", "params": {"open_hold": false, "wafers_fit": false, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_feeders": false, "pulse_partial": 1.0, "pulse_payback": 0.0, "pulse_tail": 0, "rules": {"port_stoppage": {"first": "open"}, "port_slowdown": {"mode": "keep"}}}},
+ "c1_scarce": {"base": "mpc_pulse_rec_v11b_x", "params": {"pulse_hold_scarce": true}},
+ "c2_scarce_h26_p0": {"base": "mpc_pulse_rec_v11b_x", "params": {"pulse_hold_scarce": true, "pulse_hold_weeks": 26.0, "pulse_payback": 0.0}},
+ "c3_h26_p0": {"base": "mpc_pulse_rec_v11b_x", "params": {"pulse_hold_weeks": 26.0, "pulse_payback": 0.0}},
+ "c4_all": {"base": "mpc_pulse_rec_v11b_x", "params": {"pulse_sync": true, "pulse_hold_scarce": true, "pulse_hold_weeks": 26.0, "pulse_payback": 0.0}}
+}

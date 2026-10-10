@@ -1,0 +1,7 @@
+{
+ "v9": {"base": "mpc_pulse_rec_v9", "params": {}},
+ "t_v10": {"base": "mpc_pulse_rec_v10", "params": {}},
+ "v10b": {"base": "mpc_pulse_rec_v10b", "params": {}},
+ "c2_scarce_h26_p0": {"base": "mpc_pulse_rec_v11b_x", "params": {"pulse_hold_scarce": true, "pulse_hold_weeks": 26.0, "pulse_payback": 0.0}},
+ "c3_h26_p0": {"base": "mpc_pulse_rec_v11b_x", "params": {"pulse_hold_weeks": 26.0, "pulse_payback": 0.0}}
+}

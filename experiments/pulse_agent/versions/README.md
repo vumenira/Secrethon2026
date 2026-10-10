@@ -1,6 +1,6 @@
 # Earlier versions of the pulse agent
 
-Every agent folder built on the way to `agents/mpc_pulse_rec_v12`, kept as it was played so that any number in
+Every agent folder built on the way to `agents/mpc_pulse_rec_v13`, kept as it was played so that any number in
 [../README.md](../README.md) can be replayed. None of these is the agent to submit.
 
 - **Each folder is a complete submission folder** (`agent.py`, its modules and its own copy of the vendored planner
@@ -26,7 +26,8 @@ public leaderboard.
 | `mpc_pulse_rec_v9` | runs of full weeks start sooner and end cleanly | board 0.8827 |
 | `agents/mpc_pulse_rec_v10` (not in this folder) | a full week needs every fuel; the stand-down test counts as the simulator does | fresh 0.8796; not uploaded in its final form |
 | `agents/mpc_pulse_rec_v11` (not in this folder) | scarce fuels wait together, the pulse holds through a shock, a small fuel no longer outbids the scarce one on a shared route | untouched 0.8930 (Full: 0.9069 and 0.9034); not uploaded |
-| `agents/mpc_pulse_rec_v12` (the final agent, not in this folder), with its pieces `v12a`, `v12b`, `v12c` | fuel by pipe held at the supply node, two checks on v11's rules, a limit on fuel bought on a tariffed route | board 0.8910; untouched 0.8935 (Full: 0.9194 and 0.9128) |
+| `agents/mpc_pulse_rec_v12` (not in this folder); its pieces `mpc_pulse_rec_v12a`, `mpc_pulse_rec_v12b` and `mpc_pulse_rec_v12c` are here, as they were built and measured on v11 before the merge | fuel by pipe held at the supply node, two checks on v11's rules, a limit on fuel bought on a tariffed route | board 0.8910; untouched 0.8935 (Full: 0.9194 and 0.9128) |
+| `agents/mpc_pulse_rec_v13` (the final agent, not in this folder) | a fuel reserve at the last strait before the terminals; a pulse for a mildly short grid once what it missed pays for a start; a guard on the week's CPU | board 0.8972; untouched 0.8983 (Full: 0.9204 and 0.9153) |
 
 ## Steps between the uploads
 

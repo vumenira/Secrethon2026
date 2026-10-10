@@ -2,7 +2,7 @@
 
 Українською: [SOLUTION.uk.md](SOLUTION.uk.md)
 
-**The agent to submit is `agents/mpc_pulse_rec_v12`. It scores 0.8910 on the public board (Small) and 0.916 on 64
+**The agent to submit is `agents/mpc_pulse_rec_v13`. It scores 0.8972 on the public board (Small) and 0.918 on 64
 Full episodes nothing was ever chosen on.** It is the
 benchmark's own rolling LP planner with a handful of rules added, each found by measuring where the planner loses
 money. It has no learned parts, reads no warnings or announcements, and uses about a quarter of the CPU limit.
@@ -15,8 +15,8 @@ settings sweeps, the cost gap against the clairvoyant plan) are in
 ## What it scores
 
 Each row adds to the one above. The two middle columns are local scores on episodes that no setting was tuned on
-(root 2026: 64 Small episodes, 16 Full episodes). The rules of v11 and v12 were found partly by reading those episodes,
-so for the last two rows the untouched sets in the notes below are the fair test.
+(root 2026: 64 Small episodes, 16 Full episodes). The rules of v11, v12 and v13 were found partly by reading those
+episodes, so for the last three rows the untouched sets in the notes below are the fair test.
 
 | Step | Small | Full | Public board |
 | --- | --- | --- | --- |
@@ -31,20 +31,26 @@ so for the last two rows the untouched sets in the notes below are the fair test
 | + runs of full weeks start sooner and end cleanly (v9) | 0.877 | 0.894 | 0.8827 |
 | + a full week needs every fuel; the stand-down test counts as the simulator does (v10) | 0.880 | 0.898 | 0.8854 (a snapshot) |
 | + scarce fuels wait together; a small fuel no longer outbids the scarce one on a shared route (v11) | 0.886 | 0.905 | not uploaded |
-| + fuel by pipe held at the supply node; no over-buying on a tariffed route (v12, the final agent) | 0.886 | 0.913 | 0.8910 |
+| + fuel by pipe held at the supply node; no over-buying on a tariffed route (v12) | 0.886 | 0.913 | 0.8910 |
+| + a fuel reserve at straits; a week that runs out of CPU no longer falls to the naive rule (v13, the final agent) | 0.893 | 0.915 | 0.8972 |
 
-- **The private board plays Full.** Locally the final agent scores 0.919 and 0.913 there on two sets nothing was
-  ever chosen on (0.916 over their 64 episodes), so expect more than on Small. The score moves by about 0.05 from
+- **The private board plays Full.** Locally the final agent scores 0.920 and 0.915 there on two sets nothing was
+  ever chosen on (0.918 over their 64 episodes), so expect more than on Small. The score moves by about 0.05 from
   one set of episodes to another, so the board's own episodes matter as much as any one version.
 - **The gains are real on untouched episodes.** Sets built at the end and played once per agent show v9 over the
   early v2 at +0.039 on Small (the same as on the sets we tuned on) and +0.020 on Full (+0.028 on the two oldest
   sets, so a quarter of that was luck); v10 over v9 at +0.003 on Small and +0.001 on Full; v11 over v10 at +0.006
   on Full (+0.009 on the sets its rules were found on); and v12 over v11 at +0.011 on Full (+0.010 where its pieces
-  were found), 52 of 64 episodes better and 5 worse. On Small v11 and v12 add little on untouched episodes (+0.001
+  were found), 52 of 64 episodes better and 5 worse; and v13 over v12 at +0.002 on Full (+0.005 where its pieces
+  were found: less than half held, because its gain sits in the few episodes where a strait is cut for long) and
+  +0.005 on Small, where nearly all of it held. On Small v11 and v12 add little on untouched episodes (+0.001
   each): most of what they do applies to situations Small does not have.
 - **No week fell back to the naive rule** in any upload or local play.
-- **CPU:** `sbf check` under Linux passes. The slowest week is the first: about 0.25 to 0.45 s of 2 s on Small and,
-  on Full, 1.1 s of 4 s on a quiet machine and 1.6 to 1.9 s on a loaded one. v12 costs no more than v11.
+- **CPU:** `sbf check` under Linux passes. The slowest week is the first: 0.13 to 0.45 s of 2 s on Small and, on
+  Full, 1.1 s of 4 s on a quiet machine and up to 2.3 s on a loaded one. v13 costs no more than v12. The scoring
+  host is no slower than the laptop these were timed on (the package's own planners fit its budgets the same way
+  on both). A week over the budget is played by the naive rule, and one such week costs 0.007 to 0.011 of the
+  score, so since v13 a solve that would run over is cut and the week is played from the last plan.
 
 ## Why these rules: three things we measured
 
@@ -94,6 +100,16 @@ stays as observed, and sends the first week's flows. Around that:
   A fuel not worth a full tank is held up to one charge instead of not at all, two of v11's rules stop holding
   fuel for a week that does not need it, and nuclear fuel is not over-bought on a route that pays a tariff.
   +0.011 on untouched Full episodes.
+- **A fuel reserve at straits (v13),** from a third pass of that analysis: the clairvoyant plan bridges a strait or
+  a route that is cut for months with fuel it parked beyond the strait beforehand, and the planner's reserve ended
+  where the storage of a grid and its terminal does, at a few weeks of burn. Tanker cargo can wait at a strait
+  without limit, so the reserve now goes on there: 26 weeks of what the last strait before the terminals can pass
+  on to the grids behind it. +0.002 on untouched Full episodes and +0.005 on untouched Small ones. With it, a grid
+  short of a fuel by a little is pulsed once what its fabs have missed pays for a start (+0.0002).
+- **A guard on the week's CPU (v13, `agent.py`).** The week's solve stops at 0.8 of the CPU budget, and the week
+  then plays last week's plan for it, or a 5-week window's first week, through the pulse; the solve goes on in
+  the weeks after from where it was cut. A cut costs about 0.001 where the naive week costs 0.007 to 0.011. No
+  local play has needed it.
 
 Every rule is a setting in `PARAMS` of `agent.py`, computed from the instance and the observation (no grid or fuel is
 named in code), and wrapped so that a failure falls back to the planner's own flows.
@@ -137,15 +153,20 @@ named in code), and wrapped so that a failure falls back to the planner's own fl
 | Releasing a war's second-stage cut on its known week | +0.0001 on Full |
 | Buying nuclear fuel later | -0.046 just in time; the early stock is insurance that gets used |
 | The 104 action entries per Full episode that the simulator refuses | harmless: one slot on a banned route, sent at 0 |
+| Knowing when the events it sees will end, re-measured on v12 | +0.0025 with the truth |
+| Another window-end value (higher for fuel, lower for everything) | 0 to -0.0097 |
+| A buffer of chips at customer nodes | -0.0000: the routes into them are full while chips pile up at the OSATs |
+| Mending run ends, the wait for a long run and the wafer top-up | +0.0001 at most on Full (the top-up's gains +0.0006 on Small; in the code, off) |
+| A pulse that knows which chips are needed | about +0.001 with hindsight; no signal tells such an episode from the pulse's best |
 
 ## Run it
 
 ```bash
 uv sync
-uv run sbf evaluate mpc_pulse_rec_v12 --task=small       # the 20 dev episodes
-uv run sbf compare mpc_pulse_rec_v12 mpc_det_h20 --task=small
-uv run sbf check mpc_pulse_rec_v12 --task=full           # needs Linux; on Windows use scripts/wsl_check.sh
-uv run sbf upload mpc_pulse_rec_v12 --dry_run            # then without --dry_run: one of the day's 3 submissions
+uv run sbf evaluate mpc_pulse_rec_v13 --task=small       # the 20 dev episodes
+uv run sbf compare mpc_pulse_rec_v13 mpc_det_h20 --task=small
+uv run sbf check mpc_pulse_rec_v13 --task=full           # needs Linux; on Windows use scripts/wsl_check.sh
+uv run sbf upload mpc_pulse_rec_v13 --dry_run            # then without --dry_run: one of the day's 3 submissions
 ```
 
 On native Windows, `sbf evaluate` and `sbf compare` stop on a missing Unix module unless two stand-in files,
@@ -156,9 +177,9 @@ On native Windows, `sbf evaluate` and `sbf compare` stop on a missing Unix modul
 
 | Path | What |
 | --- | --- |
-| `agents/mpc_pulse_rec_v12/` | the final agent: `agent.py` (settings, glue), `pulse.py`, `reserve.py`, `recovery.py`, `sbflow/` (the vendored planner) |
-| `agents/mpc_pulse_rec_v12a/`, `v12b/`, `v12c/` | v12's three pieces as they were built and measured separately on v11, before the merge: two rules for grids the pulse stood down at (a), two checks on v11's own rules (b), a limit on fuel bought on a tariffed route (c). Records, not for upload |
-| `agents/mpc_pulse_rec_v11/` | the version before, confirmed on the same untouched episodes |
+| `agents/mpc_pulse_rec_v13/` | the final agent: `agent.py` (settings, glue, the CPU guard), `pulse.py`, `reserve.py`, `recovery.py`, `sbflow/` (the vendored planner), `instances/` (the two public instances, read at import) |
+| `agents/mpc_pulse_rec_v12/` | the version before (0.8910 on the board), confirmed on the same untouched episodes. Its three pieces as they were built and measured separately on v11 (`mpc_pulse_rec_v12a`, `v12b`, `v12c`) are in `experiments/pulse_agent/versions/` |
+| `agents/mpc_pulse_rec_v11/` | the version before that, confirmed the same way |
 | `agents/mpc_pulse_rec_v10/`, `agents/mpc_pulse_rec_v10_on/` | v10, and the snapshot of it that was uploaded (0.8854): an earlier form of one rule and two switches the final v10 leaves off, set through its `params.json` |
 | `agents/mpc_det_h20/` | the baseline every comparison is against |
 | `experiments/pulse_agent/README.md` | the full log: every version, table and dropped idea |
@@ -191,6 +212,15 @@ calm ones, which carry half the weight. An analysis of the twelve worst (2026-10
   largest single loss, 46 bn USD, is a fab run for chips that were not short).
 - **Everything else measured that day is small or closed:** costs other than shortages are 0.007 of the 0.105 gap,
   and foresight inside the 20-week window is worth about +0.015 at most.
+- **Three more passes (2026-10-10) found one more piece, and it is v13.** A census of every week the pulse leaves
+  a grid as it is puts nearly all of them down to fuel that is physically cut or held on purpose (the one
+  stand-down the pulse makes by choice is worth 0.001). Mending the known misfires of run ends and of the wafer
+  top-up is worth nothing on Full. Of the twelve worst episodes' shortfall a tighter bound puts 66 % out of any
+  agent's reach. What was within reach was fuel in the wrong place when a route is cut: the reserve at straits,
+  +0.005 on the sets it was found on and +0.002 on the 64 untouched Full episodes.
+- **What is left after v13 is small:** fab energy per unit of the scarcest fuel at Korea, Japan and China, most of
+  which the pulse already takes, and fuel logistics that need the date a route is cut. Knowing when the events it
+  sees will end would give +0.0025.
 
 Known weak spots: an energy shock that starts at a grid being trimmed costs about a week of the trim, and the opening
 hold makes about a third of Small episodes slightly worse while helping the rest more.

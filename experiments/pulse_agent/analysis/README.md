@@ -19,6 +19,7 @@ not a tool:
 | `left/` | the opening weeks and the choice of fab weeks; the play test of the opening hold; the exact rule that showed the earlier "realizable" plan was not realizable | `playhold.py`, `tight.py`, `opening.py` |
 | `v5/` | the hindsight-calendar ceiling and the calendar forecast | `ceiling.py`, `lab.py` |
 | `v8/` | probes written while building the opening hold | `crit.py`, `look.py` |
+| `v13/` | the round behind v13 (2026-10-10): `stand_down/` (the census of every week the pulse leaves a grid as it is), `runs/` (how often `schedule_ends`, `schedule_runs` and the wafer top-up misfire), `worst_episodes/` (the twelve worst Full episodes against the clairvoyant plan, the bound, the strait reserve), `cpu/` (the first week's CPU, the scoring host's speed, the guard's test) and `probes/` (lost sales at sinks, the buffer that was dropped, grid and fab traces of recorded episodes) | `pooled.py` (several sets as one), `with_lock.py` (plays of several sessions share the machine), `stand_down/census.py`, `worst_episodes/rec.py`, `cpu/t_host.py` |
 
 Two scripts worth knowing by name:
 

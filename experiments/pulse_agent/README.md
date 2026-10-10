@@ -1,17 +1,18 @@
-# The pulse agent: every version and measurement (2026-10-06 to 2026-10-09)
+# The pulse agent: every version and measurement (2026-10-06 to 2026-10-10)
 
 This is the detailed log behind our agent. For the short version, read [SOLUTION.md](../../SOLUTION.md) first.
 
-- **The final agent is `agents/mpc_pulse_rec_v12`** (0.8910 on the public board; 0.916 on 64 untouched Full
-  episodes). Every earlier version is kept, runnable, under `versions/<name>` beside this file
+- **The final agent is `agents/mpc_pulse_rec_v13`** (0.8972 on the public board; 0.918 on 64 untouched Full
+  episodes. The agent before it, `agents/mpc_pulse_rec_v12`, has 0.8910 and 0.916). Every earlier version is
+  kept, runnable, under `versions/<name>` beside this file
   (`experiments/pulse_agent/versions/`) or, for the last few, in `agents/`; a version named below without a path is
   one of the `versions/` folders.
 - **Part one** (down to "Risks and limits") describes the first version, `versions/ft_buffer`: the benchmark's rolling LP
   planner with a value for goods at the window's end, a fuel reserve at grids, a "pulse" that delivers scarce fuel in
   whole weeks so fabs can run, and a price that sends scarce fuel to the grid that loses most. It reads no warnings and
   no announcements and has no learned parts. Uploaded on 2026-10-06, it scored 0.8289.
-- **Part two** ("Later versions") adds one entry per version, v2 to v12, each with what it changed, what was measured
-  and what was dropped, and the analyses of 2026-10-09 behind v11 and v12.
+- **Part two** ("Later versions") adds one entry per version, v2 to v13, each with what it changed, what was measured
+  and what was dropped, and the analyses of 2026-10-09 and 2026-10-10 behind v11, v12 and v13.
 - **The code explains itself** in module docstrings: `agent.py` (overview, every setting commented in `PARAMS`),
   `pulse.py` (the pulse and the rules after it), `reserve.py` (the LP changes, with formulas), `recovery.py` (the
   forecast).
@@ -680,8 +681,8 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
 
   It trims the tail and moves the score little. On the analysis set the largest loss against v10 falls from 39 to
   26 bn. The episode that loses 69 bn on the untouched Small set was never opened. Built as `hold_checks` in
-  `agents/mpc_pulse_rec_v12b`.
-- **A second pass over what v11 loses on Full (2026-10-09; `agents/mpc_pulse_rec_v12a`).** Two rules for a grid the
+  `mpc_pulse_rec_v12b`.
+- **A second pass over what v11 loses on Full (2026-10-09; `mpc_pulse_rec_v12a`).** Two rules for a grid the
   pulse stood down at because a short fuel "cannot be held"; neither has a setting of its own.
   - **Where v11's loss sits.** Its shortfall on the 64 Full episodes of roots 12345, 2026 and 777 is 0.127. Over
     the 40 episodes with a base-first bound, 0.047 is closed and 0.060 open (0.073 for v9). On 28 recorded
@@ -722,8 +723,8 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
   were needed, in v11's rules too.
 - **v12, `agents/mpc_pulse_rec_v12`, confirmed (2026-10-10).** v11 with the three pieces above merged into
   `pulse.py` and `agent.py` by a three-way merge on v11: `pipe_pulse` and `lean_hold` (v12a), `hold_checks` with
-  "together" and "shock" (v12b), `fuel_cancel_tariff` (v12c). The three folders are kept beside it as they were
-  measured. The six merge conflicts were two pieces adding text or code at the same place, and both sides were
+  "together" and "shock" (v12b), `fuel_cancel_tariff` (v12c). The three folders are kept in `versions/` as they
+  were measured. The six merge conflicts were two pieces adding text or code at the same place, and both sides were
   kept.
   - **The merge is exact.** With all four new switches off the merged folder reproduces v11 to the cent on all 16
     episodes of Full 12345 and all 64 of Small 12345. With one piece on at a time it reproduces that piece's own
@@ -753,6 +754,136 @@ So approaches 2, 4, 6, 7 and 8 of `experiments/approaches/README.md` were not bu
     v11, so it costs no more CPU.
   - **Uploaded on 2026-10-09: 0.8910 on the public board, no fallback week** (the best upload before it:
     `mpc_pulse_rec_v10_on`, 0.8854).
+
+- **Closed on 2026-10-10 before anything was built (Full root 12345, 16 episodes, against v12; 90 % paired
+  intervals).** Two probes that need no code, one rule that was built and dropped, and what recorded episodes show.
+  - **The ends of visible events.** v12 with the true end of every closure, capacity cut and grid shortage it sees
+    (`tune.py`'s `truth` option): +0.0025 (+0.0011 to +0.0040, 13 episodes better / 3 worse). Hedging end dates
+    with scenarios can only take a part of that, and two scenarios in the window take 6.6 to 7 s for a first week.
+  - **The window-end value.** `end_value_fuel` 4 and 8: -0.0000 and -0.0001. `end_value` 1.0 and 0.5 with the
+    fuel's kept at 2: -0.0014 (-0.0020 to -0.0009) and -0.0097 (-0.0121 to -0.0069). A value per good and node
+    from the clairvoyant plan's shadow prices was not built: in the window every chip's price is pinned at the
+    credit itself, and the exact cost-to-go (the plan told everything to the episode's end) had already measured
+    below the scalar. A window with coarse far weeks was not built either: a truthful 32-week window is -0.0047.
+  - **A buffer of chips at sinks: built, nothing.** All 16 Full sinks lose what they cannot serve, and the plan
+    sends a sink its forecast and no more. As a soft minimum in the window the plan met it by "not selling" in
+    its first week, which is not the agent's to decide (a linear program cannot say that a sink sells what it
+    holds). As a top-up after the planner, from packaged chips the plan leaves unused for four weeks and within the
+    capacity the week's flows leave: -0.0000 (6 / 10). The routes into sinks are full while chips pile up at the
+    OSATs, so there is nothing to hold a buffer with (`analysis/v13/probes/sink_buffer.py`).
+  - **What three recorded episodes show** (root 12345, episodes 0, 3 and 7; `analysis/v13/probes/`). Japan dark in
+    four weeks of five for the whole episode: both edges that carry crude into its terminal are cut to 0.21 of its
+    burn from week 1, and the pulse runs at that duty. Europe dark for 101 weeks: its crude is banned for 104.
+    Powered fabs in the US and Europe at 4 to 50 % of capacity: the routes out of the fab carry 10 to 40 % of what
+    it makes, or its one material source has no supply. None of it is the agent's doing.
+  - **A sweep of 31 settings on v12 was started and not finished** (three values played on two sets, all within
+    0.0005 of zero; the variants are `w13_*`).
+- **The week's CPU (2026-10-10).** What a week over the budget costs, how near the budget the agent comes, and a
+  guard for the week that runs out all the same (`guard` and `preload` in `agent.py`; `analysis/v13/cpu/`).
+  - **A week played by the naive rule is dear.** With one week handed to the planner's own naive rule, as the
+    server does with a week over its CPU budget (Full root 12345, 16 episodes, every episode worse each time):
+    week 1 -0.0073 (-0.0089 to -0.0057), weeks 1 and 2 -0.0132 (-0.0155 to -0.0111), week 30 -0.0110 (-0.0130 to
+    -0.0091). That is the size of a whole version.
+  - **The slowest week is the first:** a solve without a basis to start from, 10 to 15 thousand simplex iterations
+    on Full where a later week takes 2 to 4 thousand. Nothing makes it faster and keeps the plan: a starting
+    basis shipped with the agent halves the iterations and saves no time (a basis switches presolve off), no solver
+    option gains more than a third, and the same optimum reached another way plays other flows (the window has
+    ties: two optimal first weeks differ by 100,000 units on some slots).
+  - **The scoring host is no slower than the laptop.** The package says its `mpc_scen` fits 1 s a week on Small at
+    3 scenarios and not at 4 on that host (`shockbench_flow/policies/mpc_scen.py`, `S_BUDGET`). On the laptop,
+    under the load of nine play workers, they take 1.2 to 1.45 s and 1.3 to 1.8 s (the p95 of an episode's weeks),
+    and v13's first Full week 1.3 to 3.3 s over the 20 dev episodes in the same conditions. So the host runs at
+    0.56 to 0.83 of those times: the first week about 1.2 s there for the median episode and 2.4 s at most, of 4 s.
+    (An earlier figure of ours, the host two to two and a half times slower, came from one unrelated number.)
+  - **The guard.** Every solve is given what is left of 0.8 of the week's budget (HiGHS's `time_limit`). A week
+    whose solve is cut plays, through the pulse, last week's plan for it if there is one, else the first week of a
+    5-week window solved by 0.92 of the budget (a fifth of the full window's time), else an older plan, else the
+    naive rule. A solve cut with presolve on returns no basis, so the weeks after it solve without presolve from
+    the basis the last cut run reached, until one ends. With the limit not reached the agent plays as v12, to the
+    cent; with the solve cut on purpose a cut costs -0.0006 to -0.0014 in week 1 (stand-in windows of 5 to 16
+    weeks, no order in it), -0.0012 in weeks 1 and 2, -0.0009 in week 30: a tenth to a fifth of the naive week.
+  - **The preload.** The instance and its naive plan are built at import, which the server does not meter, from the
+    two public instance files in the agent's `instances/`: 0.10 to 0.15 s off the first week on the laptop.
+- **Three more passes over what v12 loses on Full (2026-10-10).** Each was built in a work folder of its own on v12
+  and measured against it on the 64 Full episodes of roots 12345, 2026 and 777; the scripts are in `analysis/v13/`.
+  - **Where the pulse leaves a grid as it is (`stand_down/`).** A census of every grid-week of those 64 plays in
+    which the fabs got less than their draw (46,144 grid-weeks), by the branch of the pulse that left the week as
+    it was, with the chips missed that week as what is at stake (an upper bound: the parts add to 0.29 where the
+    real gap is 0.117, because not every chip is needed):
+
+    | What the pulse did | Grid-weeks | Of the score, at most |
+    | --- | --- | --- |
+    | Holding, dark by design (terminal, pipe, one charge) | 10,001 | 0.217 |
+    | Stood down: the fuel is cut to nothing, or has no terminal (nuclear) | 2,356 | 0.034 |
+    | Stood down: not worth a tank (`pulse_payback`) | 1,948 | 0.009 |
+    | Energy shock, held or not | 695 | 0.019 |
+    | Opening hold | 193 | 0.007 |
+    | Left alone by choice (`pulse_partial`) | 251 | 0.0010 |
+    | Whole weeks with a small fuel missing | 23,537 | 0.004 |
+
+    The one stand-down the pulse makes by choice is worth a thousandth. In every week a grid was stood down for a
+    fuel that cannot be held, that fuel takes the fabs' whole draw by itself, so nothing is gained by holding the
+    others. Two rules were built: `mild_start` (a grid left alone by `pulse_partial` is pulsed once the chips
+    missed since its last whole week are worth more than the dark week a start costs; no setting) gains +0.0002
+    (+0.0000 to +0.0004), 4 episodes better and none worse, all of it crude at China; `mild_ends` (a partly powered
+    week that a dark week must follow is held instead) gains +0.0001 (14 / 6) and is left off.
+  - **Runs of whole weeks and the wafer top-up (`runs/`).** `schedule_ends` ended 67, 69 and 234 runs at grids
+    that are not pulsed (Full 12345, Full 2026, Small 6006), and all but 2, 2 and 9 of them are grids whose gas
+    arrives at 0.8 to 0.9 of its burn, where a dark week in six is the cycle; a dark week is nearly free where the
+    fabs are short of wafers, which is why the earlier "ends" check lost. Three fixes, all left off: `ends_needed`
+    +0.0001 (-0.0001 to +0.0003; 4 / 4, 56 equal); `runs_reach` loses about as often as it gains; `wafers_plan`
+    (the top-up aims at the lots the window plan itself starts) +0.0000 on Full (-0.0002 to +0.0002) and +0.0006
+    on Small (+0.0002 to +0.0011 over 128 episodes). The known 46 bn loss turned out to be a grid pulsed for chips
+    in surplus (lost sales flat at 24 to 38 % while their stock rose from 2.7 to 9 weeks of demand): a pulse that
+    knew would gain about 0.001 with hindsight, and neither signal tried (the fab's chip store, the plan's own
+    stock growth) tells such an episode from the pulse's best.
+  - **The twelve worst episodes against the clairvoyant plan (`worst_episodes/`).** Their shortfall is 11,573 bn
+    USD. A bound that keeps base load before fabs for every subset of a grid's fabs puts 7,588 of it (66 %) out of
+    any agent's reach. Of the 3,985 left, about 2,000 is fab energy per unit of the scarcest fuel (Korea 1,040,
+    Japan 509, China 215: the pulse's ground, see the census) and about 1,300 is fuel in the wrong place when a
+    route is cut. The plan bridges a long closure with fuel it parked beyond the strait beforehand (30,000 GWh of
+    gas and 34,000 of crude at one strait in one episode); v12 holds nothing there, because its reserve ends where
+    the storage of a grid and its terminal does, at a few weeks of burn.
+- **v13, `agents/mpc_pulse_rec_v13`, confirmed (2026-10-10).** v12 with the reserve at straits, `mild_start`, the
+  guard and the preload; `mild_ends`, `ends_needed`, `runs_reach`, `wafers_plan` and `reserve_sources` are in the
+  code and off.
+  - **The reserve at straits (`strait_reserve`, in `reserve.py`).** Tanker cargo waits at a strait until the agent
+    releases it, and a strait's queue has no limit. The soft minimum of the grids' fuel reserve is put on a fuel's
+    queue at the last strait before the terminals, wherever the fuel reaches that strait through another one:
+    26 weeks of what the strait can pass on to the grids behind it (each edge into a grid's terminal at its
+    capacity in the window, up to the burn it feeds, within the strait's throughput), at the reserve's own price,
+    tapering to nothing at the episode's end and absent in a week the queue is charged at a war-risk rate. It
+    names no strait, grid or fuel. Alone on the 64 Full episodes: +0.0046 with 26 weeks (+0.0018 to +0.0080;
+    43 / 21) and +0.0036 with 8 (+0.0017 to +0.0060; 46 / 18); only those two were played. The 26 weeks earn
+    their extra in four episodes with a long closure (one gains 268 bn against 183 with 8) and cost the rest a
+    little holding. Its largest loss, 58 bn in one episode, is not the reserve's own fuel: the plan curtailed
+    another supply of a grid whose stores were full, and that route was cut later. `reserve_sources` (the same
+    reserve at supply nodes) takes that loss back and loses as much elsewhere; it is off.
+  - **The merge is exact.** With the new switches off the merged folder equals v12 to the cent on Full 12345 and
+    Small 12345, and with one piece on at a time it equals that piece's own play (the reserve on Full 12345,
+    `mild_start` on Full 2026, `wafers_plan` and `ends_needed` with `runs_reach` on Full 12345). The final files
+    differ from the merged ones in comments and in the reserve's default.
+
+  | Set | `mpc_pulse_rec_v12` | `mpc_pulse_rec_v13` | Difference (90 % interval) | Better / worse |
+  | --- | --- | --- | --- | --- |
+  | Full 12345 (pieces found here) | 0.8936 | 0.8948 | +0.0012 (-0.0001 to +0.0025) | 12 / 4 |
+  | Full 2026 (pieces found here) | 0.9128 | 0.9146 | +0.0018 (-0.0007 to +0.0046) | 10 / 6 |
+  | Full 777 (pieces found here, 32 episodes) | 0.8702 | 0.8780 | +0.0078 (+0.0033 to +0.0136) | 21 / 11 |
+  | Full, those three as one (64) | 0.8830 | 0.8877 | +0.0047 (+0.0020 to +0.0081) | 43 / 21 |
+  | **Full 9001 (untouched, 32 episodes)** | 0.9194 | 0.9204 | +0.0009 (+0.0001 to +0.0018) | 21 / 11 |
+  | **Full 5150 (untouched, 32 episodes)** | 0.9128 | 0.9153 | +0.0025 (+0.0002 to +0.0050) | 20 / 12 |
+  | **Full, the two untouched sets as one (64)** | 0.9161 | 0.9182 | +0.0021 (+0.0008 to +0.0036) | 41 / 23 |
+  | Small 12345 and 2026 as one (128) | 0.8892 | 0.8946 | +0.0054 (+0.0032 to +0.0079) | 91 / 37 |
+  | **Small 9001 (untouched)** | 0.8935 | 0.8983 | +0.0048 (+0.0018 to +0.0078) | 40 / 24 |
+
+  - **On Full a bit under half of the gain holds on untouched episodes** (+0.0021 against +0.0047). The reserve
+    pays in episodes where a strait or a route is cut for long after the episode has begun, and the sets it was
+    found on have more of them (four carry the 26 weeks' extra). The largest loss in an untouched Full episode is
+    25 bn USD, the largest in a used one 58.
+  - **On Small nearly all of it holds** (+0.0048 against +0.0054), the first gain there since v10.
+  - **What it costs.** 3 to 6 % more simplex iterations a week. `sbf check mpc_pulse_rec_v13` passes under Ubuntu on Small and Full: on a quiet machine the slowest week is the first, 1.09 s of 4 s on Full (median 0.33 s) and 0.13 s of 2 s on Small; v12 timed back to back takes 1.09 s (median 0.34 s), so v13 costs no more CPU.
+  - **Uploaded on 2026-10-10: 0.8972 on the public board, no fallback week** (v12: 0.8910; the gain there, +0.0062,
+    is the one the Small sets showed).
 
 ## Reproducing a number
 

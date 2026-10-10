@@ -36,16 +36,17 @@ itself is the `shockbench-flow` package from PyPI (`>= 0.1.2` in
 
 ```
 agents/<name>/     # one submission folder per agent: agent.py and the files it loads (weights are committed)
-                   #   ours: mpc_pulse_rec_v12 (the agent to submit, 0.8910 on the board; SOLUTION.md) and its three pieces
-                   #   as built before the merge (v12a, v12b, v12c: records, not for upload), mpc_pulse_rec_v11,
-                   #   mpc_pulse_rec_v10 and mpc_pulse_rec_v10_on (earlier versions), mpc_det_h20 (the baseline)
+                   #   ours: mpc_pulse_rec_v13 (the agent to submit, 0.8972 on the board; SOLUTION.md), mpc_pulse_rec_v12
+                   #   (the one before, 0.8910), mpc_pulse_rec_v11, mpc_pulse_rec_v10 and mpc_pulse_rec_v10_on (earlier
+                   #   versions), mpc_det_h20 (the baseline)
                    #   shipped: template (send the maximum), random, heuristic (reads params.json if present)
 examples/          # 01_quickstart.py ... 07_dashboard.py, each self-contained; ppo_agent.py is the PPO submission's agent.py
 src/sbf_starter/   # the `sbf` CLI (cli.py), scoring.py, check.py (isolated timed run), container.py (--docker),
                    #   codabench.py (token, upload, status), agents.py (names -> folders), play.py (closures)
                    #   viewer/ (`sbf view`: export.py turns a record into JSON, page.html draws it, one file)
 scripts/           # fields_docs.py: regenerates docs/fields/; vendor_planner.py: copies the package's planner into an
-                   #   agent's sbflow/; wsl_check.sh: `sbf check` under WSL on a Windows machine
+                   #   agent's sbflow/; wsl_check.sh: `sbf check` under WSL on a Windows machine; leaderboard.py: which
+                   #   of our submissions is on the board, and puts another one on it
 experiments/       # one write-up per approach (<name>.md or <name>/README.md) and its research code
                    #   pulse_agent/: the log of the submitted agent, versions/ (earlier agents, runnable), analysis/
                    #   approaches/: tune.py (paired comparison of variants on a root of our own), foresight.py, diag.py
@@ -71,6 +72,7 @@ Always run Python through `uv run` (the locked environment). `AGENT` is a name
 | Codabench token, once         | `uv run sbf token` (the participant types the password; not an agent)   |
 | Upload (only when asked)      | `uv run sbf upload mine --dry_run`, then without it                      |
 | Submissions and scores        | `uv run sbf status`                                                      |
+| Which submission is on the board | `uv run python scripts/leaderboard.py` (`--submission=ID` puts that one on it: only when asked) |
 | Run an example                | `uv run python examples/0N_name.py --task=small --key=value`             |
 | Add a dependency              | `uv add <package>` (training only: agent.py cannot import it)            |
 | Update shockbench-flow        | `uv sync --upgrade-package shockbench-flow` (never edit a version)       |

@@ -9,97 +9,39 @@ planner with a set of rules we found by measuring where the planner loses money.
 | --- | --- |
 | **Public board** (Small network, 200 hidden episodes) | **0.8972** |
 | Local, Full network, 64 episodes nothing was tuned on | 0.918 |
-| **Private board** (Full network, 400 hidden episodes) | *to be added when published* |
+| **Private board** (Full network, 400 hidden episodes) | **0.9181** |
 
 ![Our best public-board score over the hackathon](docs/img/progress_board.png)
 
 **Contents**
 
-1. [The task, in plain words](#1-the-task-in-plain-words)
+1. [The task in brief](#1-the-task-in-brief)
 2. [Results](#2-results)
 3. [How the final agent works](#3-how-the-final-agent-works), from the linear program to every rule
-4. [How we got there](#4-how-we-got-there): every approach we tried
-5. [What did not work](#5-what-did-not-work)
-6. [How we worked](#6-how-we-worked)
-7. [Our episode viewer](#7-our-episode-viewer-sbf-view)
-8. [Run it yourself](#8-run-it-yourself)
-9. [Where things are](#9-where-things-are)
+4. [What did not work](#4-what-did-not-work)
+5. [Our episode viewer](#5-our-episode-viewer-sbf-view)
+6. [Run it yourself](#6-run-it-yourself)
+7. [Where things are](#7-where-things-are)
 
 ---
 
-## 1. The task, in plain words
+## 1. The task in brief
 
-### The network
+Every week of an episode the agent decides how much fuel, wafers and chips to send along each route of a supply
+network: sources → port terminals → power grids → chip fabs → packaging plants → markets, with straits on the way.
+Disruptions (strait closures, sanctions, tariffs, energy shocks, factory outages) are drawn before the episode starts,
+and nothing the agent does changes them.
 
-The world is a graph of **nodes** (places) and **edges** (routes). Goods flow left to right:
+- **Cost:** freight, tariffs and holding, but above all **shortage** (chips a market did not get) and **shed** power
+  (base load a grid could not serve). Lower is better.
+- **Score:** 0 is the naive rule (keep shipping the normal plan), 1 is the clairvoyant plan (a linear program that
+  knew every disruption in advance). Episodes are weighted by harm level, so calm ones carry half the score.
+- **Boards:** the public board plays Small (38 nodes, 52 weeks), the private board Full (72 nodes, 369 routes, 104
+  weeks).
+- **Limits:** only numpy, SciPy and PyTorch; 2 s of CPU per week on Small, 4 s on Full. A week over budget is played
+  by the naive rule.
 
-```
- energy:   source ──► port terminal ──► power grid ─┐ (power)
-                 (straits on the way)               ▼
- chips:    material supplier ──► chip fab ──► packaging plant (OSAT) ──► market
-             (wafers, neon)    (wafer → raw chip)  (raw → packaged chip)   (demand)
-```
-
-- **Sources** produce fuel: LNG (gas), crude oil, nuclear fuel.
-- **Port terminals** receive tankers and store fuel in front of a **power grid**.
-- **Straits** (Hormuz, Malacca, Taiwan Strait, Panama, Suez and others) are chokepoints. Cargo queues there and is
-  released at the strait's throughput; a closed strait releases nothing.
-- **Power grids** burn fuel and must serve their **base load** (homes, industry) and the **chip fabs** behind them.
-- **Material suppliers** ship wafers to **fabs**, which turn wafers into raw chips; **packaging plants (OSATs)** turn raw
-  chips into packaged chips, and **markets** buy them.
-
-| Network | Role | Nodes | Routes | Goods | Straits | Weeks | Numbers to decide per week |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Tiny | practice | 12 | 25 | 4 | 1 | 26 | 20 |
-| Small | **public board** | 38 | 115 | 8 | 7 | 52 | 108 |
-| Full | **private board** | 72 | 369 | 8 | 7 | 104 | 395 |
-
-![The Small network](docs/img/network_small.png)
-
-### Disruptions
-
-Before an episode starts, a scenario of disruptions is drawn: weather or military **strait closures**, **port strikes**,
-**sanctions** and export controls (a route is banned), **tariffs**, **energy shocks** (a grid's power drops),
-**material outages**, **regional conflicts** (fabs and routes hit, war-risk insurance up) and piracy. Nothing the agent
-does changes them. The agent also gets noisy **early warnings** and **announcements**, some of them decoys about
-events that never happen.
-
-### What the agent sees and does
-
-- **Sees**, each week: the stock at every node, cargo on its way and queued at straits, the network as it is this week
-  (capacities, costs, lead times, bans, tariffs, how open each strait is, each grid's power), last week's costs, an
-  8-week demand forecast, and the warnings.
-- **Does**, each week: one number per route and good, how much to send (`flows`), and optionally how tanker cargo
-  queued at a strait leaves (`release_mode`: the default rule, its own quantities, or hold).
-
-### What it costs
-
-Each week costs money in USD, in eight parts: **freight**, **war risk** insurance, **tariffs**, **holding** stock,
-**holding cargo queued at a strait**, **shortage** (chips a market wanted and did not get), **disposal** (stock
-above storage) and **shed** (base load a grid could not serve, priced at the "value of lost load", VOLL). Goods left at
-the end are credited at a salvage price. Lower is better.
-
-Running out dominates everything: in the kit heuristic's episodes, shed power and unserved chips are about 2,900 of
-the 2,944 bn USD an episode costs. Freight, tariffs, holding and the rest are 43.
-
-### The score
-
-For each episode, the agent's saving is compared with two references played on the same scenario:
-
-- **0: the naive rule**, which keeps shipping the normal plan and ignores disruptions;
-- **1: the clairvoyant plan**, one linear program over the whole episode that knew every disruption in advance.
-
-`score = (naive cost − agent cost) / (naive cost − clairvoyant cost)`, pooled over episodes. Episodes are grouped in
-four **harm levels** (1 calmest to 4 most harmful) weighted 50 %, 30 %, 15 % and 5 %, so calm episodes carry half the
-score. Below 0 is worse than doing nothing clever.
-
-### The rules that shaped our code
-
-- `agent.py` may import only Python's standard library, numpy, SciPy and PyTorch (CPU). No other solver, no network.
-- **CPU per week: 2 s on Small, 4 s on Full**, one thread. A week over budget, crashed or malformed is played by the
-  naive rule instead.
-- 3 submissions a day. The private board automatically re-scores, on Full, the submission a team keeps on the public
-  board.
+The organisers' full description is in [READMEOLD.md](READMEOLD.md) and [docs/GUIDE.md](docs/GUIDE.md).
 
 ---
 
@@ -111,7 +53,10 @@ score. Below 0 is worse than doing nothing clever.
 | `ft_buffer`: our first pulse agent | 0.8289 | | |
 | `mpc_pulse_rec_v12` | 0.8910 | 0.8935 | 0.9161 |
 | **`mpc_pulse_rec_v13` (final)** | **0.8972** | **0.8983** | **0.9182** |
-| Private board (Full) | | | *to be added* |
+| **Private board (Full, 400 hidden episodes)** | | | **0.9181** |
+
+**The local test predicted the private board almost exactly:** 0.9182 on our 64 untouched Full episodes against
+0.9181 on the organisers' 400 hidden ones.
 
 - **No week fell back to the naive rule** in any upload or local play.
 - **CPU:** the slowest week is the first: about 1.1 s of 4 s on Full and 0.13 s of 2 s on Small on a quiet machine.
@@ -194,7 +139,7 @@ solution), **sends only the first week's flows**, and next week observes again a
 **model predictive control** (MPC, or receding horizon).
 
 **The clairvoyant plan** is the same LP over the whole episode with the true scenario, and without the simulator's
-rule that base load is served before fabs. That last freedom matters (section 3.4): part of the gap to 1 is closed to
+rule that base load is served before fabs. That last freedom matters (section 3.5): part of the gap to 1 is closed to
 any real agent.
 
 Alone, this planner scores **0.669 on Small but 0.290 on Full**. Three measurements told us why and what to do.
@@ -259,8 +204,8 @@ How a grid works in the simulator, each week:
 2. **Base load is served first**: `served = min(base load, power available)`. The fabs share **what is left**.
 3. Base load not served is **shed** and costs VOLL.
 
-On Small and Full, base load = the grid's power minus its fabs' full draw: there is no headroom. A gas shortage of 10 %
-therefore takes 100 % of the fabs' energy, every week the shortage lasts. A chip is worth far more than the energy it
+On Small and Full, base load = the grid's power minus its fabs' full draw: there is no headroom. A fuel a few per cent
+short therefore takes all of the fabs' energy, every week the shortage lasts. A chip is worth far more than the energy it
 takes, so that is the expensive outcome.
 
 **The pulse** holds the short fuel at the terminal in some weeks and delivers a whole week's burn in others. The fuel
@@ -348,28 +293,7 @@ a route will be cut. Foresight inside the 20-week window is worth about +0.015 a
 
 ---
 
-## 4. How we got there
-
-| Date | Approach | Where | Result |
-| --- | --- | --- | --- |
-| Oct 3 | **PPO** (reinforcement learning, Stable-Baselines3) on Tiny | `agents/1ppo_tiny`, `examples/05_train_ppo.py` | fiddly; a fixed-size network cannot move from Small to Full; dropped |
-| Oct 3 | **Evolutionary search** over the heuristic's numbers | `agents/2search_tiny`, `examples/06_policy_search.py` | dropped |
-| Oct 4 | **Kit heuristic** (send the maximum, scaled by each strait's open fraction) | `agents/heuristic`, [experiments/heuristic.md](experiments/heuristic.md) | Small dev 0.400 |
-| Oct 4 | **Rule-based agent**: what each destination needs, on the best open route | `agents/3rule_based`, [experiments/3rule_based.md](experiments/3rule_based.md) | Small dev 0.551 |
-| Oct 4 | **The package's MPC planner** | `agents/mpc_det_h20` | **board 0.6751**; the base everything after builds on |
-| Oct 4 | **Hypotheses**: learning from the clairvoyant plan | [experiments/hypotheses.md](experiments/hypotheses.md) | four ideas ranked |
-| Oct 4 to 6 | **Behaviour cloning / DAgger** of a re-planning clairvoyant teacher, 12 runs | `agents/bc_*`, [experiments/bc/](experiments/bc/README.md) | ties the heuristic on Tiny (0.780); 0.469 on Small. The imitation gap: the teacher acts on a future the student cannot see |
-| Oct 6 | **Exploratory data analysis** of the environment | [experiments/eda/](experiments/eda/README.md) | 90 % of the harm is visible at week 1 and lasts; warnings are near noise; calm episodes are half the score |
-| Oct 5 to 6 | **Eight upgrades**, each with its ceiling measured first by feeding the planner the truth | [experiments/approaches/](experiments/approaches/README.md) | recovery forecast and window-end value built; five signal-based ideas dropped for tiny ceilings |
-| Oct 6 to 10 | **The pulse agent**, v1 (`ft_buffer`) to v13, one rule at a time from traced losing episodes | [experiments/pulse_agent/](experiments/pulse_agent/README.md) | **board 0.8289 → 0.8972** |
-| Oct 8 to 10 | Side experiments: window length and end value; setting sweeps; combining two branches; a night of Full-only tests | [window_end](experiments/window_end/README.md), [night](experiments/night/README.md), [combine](experiments/combine/README.md), [full_night](experiments/full_night/README.md) | settings at their optimum; two settings joined the line; v12 confirmed on 396 Full episodes |
-
-The turning point was moving from **learning a policy** to **fixing a planner**. The planner already respects the
-network's physics, and every failure it has can be measured, explained and fixed in a few lines.
-
----
-
-## 5. What did not work
+## 4. What did not work
 
 | Idea | Measured |
 | --- | --- |
@@ -390,25 +314,7 @@ The full list, with every interval, is in [SOLUTION.md](SOLUTION.md) and the exp
 
 ---
 
-## 6. How we worked
-
-- **Tune on one set of episodes, confirm on another.** Settings were chosen on our own root 12345, confirmed on 2026
-  and 777, and the 20 public dev episodes were played last. Sets built at the end (roots 9001, 5150) were played once
-  per finished version and used for nothing else. The board stayed within about 0.006 of the fresh Small set.
-- **Paired comparisons.** Every change was played on the same episodes as its predecessor and reported with a 90 %
-  paired interval and the count of episodes better and worse (`experiments/approaches/tune.py`).
-- **The ceiling before building.** Before building an idea, we fed the planner the truth to see what the idea could be
-  worth at best (`experiments/approaches/foresight.py`). That dropped five of the eight ideas we started with.
-- **Follow the money.** The pulse and the trims came from comparing our play with the clairvoyant plan, cost part by
-  cost part and grid by grid, and from an exact model of the grid rule.
-- **Merges proven exact.** With its new rule switched off, a version must reproduce its predecessor's cost to the cent
-  on every episode before it is measured.
-- **A check against overfitting.** v9 with every searched setting reset to its starting value scored lower on all
-  seven sets and on the board (0.8793 against 0.8827), so the search had found real gains, not noise.
-
----
-
-## 7. Our episode viewer (`sbf view`)
+## 5. Our episode viewer (`sbf view`)
 
 A score says *how much* an agent loses; to find out *where*, we built an interactive viewer. `uv run sbf view
 <agent> --task=full` evaluates an agent, records its worst and best episodes against the naive rule and one with a
@@ -435,7 +341,7 @@ recording into JSON, `page.html` draws it).
 
 ---
 
-## 8. Run it yourself
+## 6. Run it yourself
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh     # uv installs Python and the exact packages
@@ -454,7 +360,7 @@ The first evaluation on a network computes the reference costs and caches them i
 
 ---
 
-## 9. Where things are
+## 7. Where things are
 
 **[STRUCTURE.md](STRUCTURE.md)** maps every folder of the repository: the final agent, its earlier versions, the
 experiments and their write-ups, the tools, and what is kit-provided.

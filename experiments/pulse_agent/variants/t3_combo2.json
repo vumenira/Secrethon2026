@@ -1,0 +1,4 @@
+{
+ "t3_h24_e10_w4": {"base": "mpc_buffer", "params": {"h_weeks": 24, "end_value": 1.0, "reserve_weeks": 4.0, "shed_ramp": 0.002, "strict": true}},
+ "t3_h32_e10_w4": {"base": "mpc_buffer", "params": {"h_weeks": 32, "end_value": 1.0, "reserve_weeks": 4.0, "shed_ramp": 0.002, "strict": true}}
+}

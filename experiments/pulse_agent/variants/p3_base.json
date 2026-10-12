@@ -1,0 +1,5 @@
+{
+ "p3_v12": {"base": "mpc_pulse_rec_v12", "params": {"strict": true}},
+ "p3_v11": {"base": "mpc_pulse_rec_v11", "params": {"strict": true}},
+ "p3_v10": {"base": "mpc_pulse_rec_v10", "params": {"strict": true}}
+}

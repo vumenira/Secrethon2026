@@ -1,0 +1,3 @@
+{
+ "ft_s_v3_w1_rd": {"base": "ft_buffer_v3", "params": {"h_weeks": 20, "end_value": 2.0, "reserve_weeks": 8.0, "reserve_feeders": true, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002, "pulse": true, "pulse_run": 4, "pulse_hold_weeks": 12, "pulse_partial": 0.5, "pulse_payback": 12, "pulse_tail": 0, "short_premium": 1.0, "strict": true, "pulse_wafers": 1.0, "pulse_rundown": true}}
+}

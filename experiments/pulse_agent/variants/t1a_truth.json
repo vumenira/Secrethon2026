@@ -1,0 +1,3 @@
+{
+ "t1a_truth_strike": {"base": "mpc_recovery", "params": {"kinds": ["capacity"]}, "truth": ["capacity"]}
+}

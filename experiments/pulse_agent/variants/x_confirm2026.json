@@ -1,0 +1,4 @@
+{
+ "x_e10_rec": {"base": "mpc_combined", "params": {"reserve_weeks": 0.0, "shed_ramp": 0.0, "strict": true}},
+ "x_all": {"base": "mpc_combined", "params": {"strict": true}}
+}

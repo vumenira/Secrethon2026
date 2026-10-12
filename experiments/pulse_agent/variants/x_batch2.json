@@ -1,0 +1,5 @@
+{
+ "x_all_mean": {"base": "mpc_combined", "params": {"rules": {"port_stoppage": {"first": "open"}, "port_slowdown": {"mode": "keep"}}, "strict": true}},
+ "x_all_cg": {"base": "mpc_combined", "params": {"kinds": ["closure", "grid"], "strict": true}},
+ "x_all_cc": {"base": "mpc_combined", "params": {"kinds": ["closure", "capacity"], "strict": true}}
+}

@@ -1,0 +1,18 @@
+{
+ "u_cancel": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"fuel_cancel": true, "ration_trim": false, "wafers_fit": false, "strict": true}
+ },
+ "u_trim": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"fuel_cancel": false, "ration_trim": true, "ration_trim_margin": 0.0, "ration_trim_cover": 6.0, "wafers_fit": false, "strict": true}
+ },
+ "u_fit": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"fuel_cancel": false, "ration_trim": false, "wafers_fit": true, "strict": true}
+ },
+ "u_all": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"fuel_cancel": true, "ration_trim": true, "ration_trim_margin": 0.0, "ration_trim_cover": 6.0, "wafers_fit": true, "strict": true}
+ }
+}

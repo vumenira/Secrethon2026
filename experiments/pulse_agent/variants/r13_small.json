@@ -1,0 +1,4 @@
+{
+ "r13_off2": {"base": "mpc_pulse_rec_v13r", "params": {"strict": true}},
+ "r13_wplan2": {"base": "mpc_pulse_rec_v13r", "params": {"strict": true, "wafers_plan": true}}
+}

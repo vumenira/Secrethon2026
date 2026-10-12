@@ -1,0 +1,4 @@
+{
+ "t1a_v2_smoke_open": {"base": "rec_capacity", "params": {"kinds": ["capacity"], "by_event": {"port_slowdown": {"mode": "keep"}, "port_stoppage": {"first": "open"}}}},
+ "t1a_v2_smoke_truth": {"base": "rec_capacity", "params": {"kinds": ["capacity"]}, "truth": ["capacity"]}
+}

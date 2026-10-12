@@ -1,0 +1,3 @@
+{
+ "r_v9_sched": {"base": "mpc_pulse_rec_v9", "params": {"strict": true, "schedule": true}}
+}

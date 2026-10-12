@@ -1,0 +1,8 @@
+{
+ "x10_off": {"base": "mpc_pulse_rec_v10", "params": {"strict": true}},
+ "x10_all": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_left": true, "schedule_wafers": true, "schedule_hold": true, "schedule_fuels": true}},
+ "x10_fuels": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_fuels": true}},
+ "x10_left": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_left": true}},
+ "x10_hold": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_hold": true}},
+ "x10_wafers": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_wafers": true}}
+}

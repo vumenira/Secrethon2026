@@ -1,0 +1,4 @@
+{
+ "t1a_v3_open_only": {"base": "rec_capacity", "params": {"kinds": ["capacity"], "by_event": {"port_slowdown": {"mode": "keep"}, "port_stoppage": {"mode": "keep", "first": "open"}}}},
+ "t1a_v3_final": {"base": "rec_capacity", "params": {"kinds": ["capacity"]}}
+}

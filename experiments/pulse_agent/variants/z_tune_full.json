@@ -1,0 +1,4 @@
+{
+ "z_reg_v2": {"base": "mpc_pulse_rec_v2", "params": {"kinds": [], "strict": true}},
+ "z_all": {"base": "mpc_pulse_rec_v2", "params": {"strict": true}}
+}

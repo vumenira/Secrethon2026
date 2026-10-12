@@ -1,0 +1,1 @@
+{"v11_no_shock": {"base": "mpc_pulse_rec_v11", "params": {"strict": true, "hold_together": true, "pulse_hold_sales": true, "schedule_ends": true, "schedule_runs": true}}}

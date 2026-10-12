@@ -1,0 +1,5 @@
+{
+ "t_reg": {"base": "mpc_pulse_rec_v7", "params": {"strict": true, "ration_trim_release": false, "fuel_trim": false, "osat_fit": false}},
+ "t_v7": {"base": "mpc_pulse_rec_v7", "params": {"strict": true}},
+ "t_osat": {"base": "mpc_pulse_rec_v7", "params": {"strict": true, "ration_trim_release": false, "fuel_trim": false, "osat_fit": true}}
+}

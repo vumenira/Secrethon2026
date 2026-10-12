@@ -1,0 +1,7 @@
+{
+ "p13_truth": {"base": "mpc_pulse_rec_v12", "params": {"strict": true}, "truth": ["closure", "capacity", "grid"]},
+ "p13_evf4": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "end_value_fuel": 4.0}},
+ "p13_evf8": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "end_value_fuel": 8.0}},
+ "p13_ev1_f2": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "end_value": 1.0, "end_value_fuel": 2.0}},
+ "p13_ev05_f2": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "end_value": 0.5, "end_value_fuel": 2.0}}
+}

@@ -1,0 +1,3 @@
+{
+ "v11_pair": {"base": "mpc_pulse_rec_v11", "params": {"strict": true, "hold_together": true, "pulse_hold_sales": false, "shock_hold": true, "schedule_ends": true, "schedule_runs": true, "premium_whole": true, "hold_small": true}}
+}

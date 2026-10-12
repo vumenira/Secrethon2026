@@ -1,0 +1,8 @@
+{
+ "t3b_base": {"base": "buf_knobs", "params": {}},
+ "t3b_h24": {"base": "buf_knobs", "params": {"h_weeks": 24}},
+ "t3b_hL": {"base": "buf_knobs", "params": {"h_weeks": null}},
+ "t3b_h32": {"base": "buf_knobs", "params": {"h_weeks": 32}},
+ "t3b_d110": {"base": "buf_knobs", "params": {"demand_scale": 1.1}},
+ "t3b_k90": {"base": "buf_knobs", "params": {"throughput_scale": 0.9}}
+}

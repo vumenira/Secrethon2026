@@ -1,0 +1,44 @@
+{
+ "w13_pulse_wafers_1p5": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_wafers": 1.5
+  }
+ },
+ "w13_pulse_wafers_room_0p3": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_wafers_room": 0.3
+  }
+ },
+ "w13_pulse_wafers_room_0p8": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_wafers_room": 0.8
+  }
+ },
+ "w13_reserve_weeks_6": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "reserve_weeks": 6
+  }
+ },
+ "w13_reserve_weeks_10": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "reserve_weeks": 10
+  }
+ },
+ "w13_reserve_price_0p0005": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "reserve_price": 0.0005
+  }
+ }
+}

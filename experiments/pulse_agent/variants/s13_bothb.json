@@ -1,0 +1,3 @@
+{
+ "s13_bothb": {"base": "mpc_pulse_rec_v13s", "params": {"strict": true, "mild_start": true, "mild_ends": true}}
+}

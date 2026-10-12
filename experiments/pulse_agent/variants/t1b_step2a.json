@@ -1,0 +1,3 @@
+{
+ "t1b_v2_mean_cg": {"base": "rec_rule", "params": {"kinds": ["closure", "grid"], "mode": "mean", "quantile": 0.5, "caution": 1.0, "rules": {}}}
+}

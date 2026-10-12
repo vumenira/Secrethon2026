@@ -1,0 +1,9 @@
+{
+ "t3a_base": {"base": "buf_lp", "params": {"strict": true}},
+ "t3a_ramp": {"base": "buf_lp", "params": {"shed_ramp": 0.002, "strict": true}},
+ "t3a_w2": {"base": "buf_lp", "params": {"reserve_weeks": 2.0, "shed_ramp": 0.002, "strict": true}},
+ "t3a_w3": {"base": "buf_lp", "params": {"reserve_weeks": 3.0, "shed_ramp": 0.002, "strict": true}},
+ "t3a_w4": {"base": "buf_lp", "params": {"reserve_weeks": 4.0, "shed_ramp": 0.002, "strict": true}},
+ "t3a_e05": {"base": "buf_lp", "params": {"end_value": 0.5, "strict": true}},
+ "t3a_e01": {"base": "buf_lp", "params": {"end_value": 0.1, "strict": true}}
+}

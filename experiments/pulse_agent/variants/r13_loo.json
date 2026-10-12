@@ -1,0 +1,7 @@
+{
+ "r13_off": {"base": "mpc_pulse_rec_v13r", "params": {"strict": true}},
+ "r13_noends": {"base": "mpc_pulse_rec_v13r", "params": {"strict": true, "schedule_ends": false}},
+ "r13_noruns": {"base": "mpc_pulse_rec_v13r", "params": {"strict": true, "schedule_runs": false}},
+ "r13_catchup": {"base": "mpc_pulse_rec_v13r", "params": {"strict": true, "pulse_wafers_catchup": true}},
+ "r13_nowaf": {"base": "mpc_pulse_rec_v13r", "params": {"strict": true, "pulse_wafers": 0.0}}
+}

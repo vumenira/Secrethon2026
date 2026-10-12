@@ -1,0 +1,4 @@
+{
+ "v13_final": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard": false}},
+ "v13_final_off": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard": false, "strait_reserve": false, "mild_start": false}}
+}

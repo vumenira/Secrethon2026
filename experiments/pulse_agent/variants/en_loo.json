@@ -1,0 +1,4 @@
+{
+ "en_noends": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "schedule_ends": false}},
+ "en_noruns": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "schedule_runs": false}}
+}

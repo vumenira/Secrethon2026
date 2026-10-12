@@ -1,0 +1,4 @@
+{
+ "s13_off": {"base": "mpc_pulse_rec_v13s", "params": {"strict": true}},
+ "s13_mild": {"base": "mpc_pulse_rec_v13s", "params": {"strict": true, "mild_start": true}}
+}

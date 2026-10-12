@@ -1,0 +1,5 @@
+{
+ "m13_off": {"base": "mpc_pulse_rec_v13m", "params": {"strict": true, "guard": false, "mild_start": false}},
+ "m13_wplan": {"base": "mpc_pulse_rec_v13m", "params": {"strict": true, "guard": false, "mild_start": false, "wafers_plan": true}},
+ "m13_er": {"base": "mpc_pulse_rec_v13m", "params": {"strict": true, "guard": false, "mild_start": false, "ends_needed": true, "runs_reach": true}}
+}

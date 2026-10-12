@@ -1,0 +1,7 @@
+{
+ "t3b_base": {"base": "buf_knobs", "params": {}},
+ "t3b_h24": {"base": "buf_knobs", "params": {"h_weeks": 24}},
+ "t3b_h28": {"base": "buf_knobs", "params": {"h_weeks": 28}},
+ "t3b_h32": {"base": "buf_knobs", "params": {"h_weeks": 32}},
+ "t3b_base2": {"base": "buf_knobs", "params": {}}
+}

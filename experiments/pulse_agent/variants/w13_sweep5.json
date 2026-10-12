@@ -1,0 +1,44 @@
+{
+ "w13_end_value_2p25": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "end_value": 2.25
+  }
+ },
+ "w13_ration_trim_cover_8": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "ration_trim_cover": 8
+  }
+ },
+ "w13_fuel_trim_cover_8": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "fuel_trim_cover": 8
+  }
+ },
+ "w13_ration_trim_margin_0p05": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "ration_trim_margin": 0.05
+  }
+ },
+ "w13_fuel_trim_margin_0p05": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "fuel_trim_margin": 0.05
+  }
+ },
+ "w13_caution_0p8": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "caution": 0.8
+  }
+ }
+}

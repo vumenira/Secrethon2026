@@ -1,0 +1,5 @@
+{
+ "a13_s8": {"base": "mpc_pulse_rec_v13w", "params": {"strict": true, "strait_reserve": true}},
+ "a13_off": {"base": "mpc_pulse_rec_v13w", "params": {"strict": true}},
+ "a13_s26": {"base": "mpc_pulse_rec_v13w", "params": {"strict": true, "strait_reserve": true, "strait_weeks": 26.0}}
+}

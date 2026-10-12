@@ -1,0 +1,5 @@
+{
+ "ft_bf_tight": {"base": "ft_buffer", "params": {"h_weeks": 20, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002, "base_first_weeks": 99, "base_first_price": "tight"}},
+ "ft_nogrid": {"base": "ft_buffer", "params": {"h_weeks": 20, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002, "end_value_grids": false}},
+ "ft_bf_pkg": {"base": "ft_buffer", "params": {"h_weeks": 20, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002, "base_first_weeks": 99, "base_first_price": "package"}}
+}

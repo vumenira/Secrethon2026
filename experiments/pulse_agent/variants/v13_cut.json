@@ -1,0 +1,9 @@
+{
+ "v13_g2": {"base": "mpc_pulse_rec_v13", "params": {"strict": true}},
+ "g13_w8": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard_test": [1], "guard_window": 8}},
+ "g13_w12": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard_test": [1], "guard_window": 12}},
+ "g13_w16": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard_test": [1], "guard_window": 16}},
+ "g13_w5": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard_test": [1], "guard_window": 5}},
+ "g13_12_w8": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard_test": [1, 2], "guard_window": 8}},
+ "g13_30": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard_test": [30]}}
+}

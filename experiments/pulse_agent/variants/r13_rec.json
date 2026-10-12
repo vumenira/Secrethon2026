@@ -1,0 +1,68 @@
+{
+ "r13rec_all3": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "ends_needed": true,
+   "runs_reach": true,
+   "wafers_plan": true
+  }
+ },
+ "r13rec_ends": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "ends_needed": true
+  }
+ },
+ "r13rec_reach": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "runs_reach": true
+  }
+ },
+ "r13rec_wplan": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "wafers_plan": true
+  }
+ },
+ "r13rec_ends2": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "ends_needed": true
+  }
+ },
+ "r13rec_reach13": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "runs_reach": true
+  }
+ },
+ "r13rec_wplan2": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "wafers_plan": true
+  }
+ },
+ "r13rec_er": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "ends_needed": true,
+   "runs_reach": true
+  }
+ },
+ "r13rec_ends2b": {
+  "base": "mpc_pulse_rec_v13r",
+  "params": {
+   "strict": true,
+   "ends_needed": true
+  }
+ }
+}

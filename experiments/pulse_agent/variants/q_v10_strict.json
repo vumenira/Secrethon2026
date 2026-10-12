@@ -1,0 +1,3 @@
+{
+ "q_v10_strict": {"base": "mpc_pulse_rec_v10", "params": {"strict": true}}
+}

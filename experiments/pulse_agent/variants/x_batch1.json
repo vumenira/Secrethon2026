@@ -1,0 +1,7 @@
+{
+ "x_reg_buf": {"base": "mpc_combined", "params": {"kinds": [], "strict": true}},
+ "x_reg_rec": {"base": "mpc_combined", "params": {"end_value": 0.0, "reserve_weeks": 0.0, "shed_ramp": 0.0, "strict": true}},
+ "x_e10_rec": {"base": "mpc_combined", "params": {"reserve_weeks": 0.0, "shed_ramp": 0.0, "strict": true}},
+ "x_all": {"base": "mpc_combined", "params": {"strict": true}},
+ "x_e10_mean": {"base": "mpc_combined", "params": {"reserve_weeks": 0.0, "shed_ramp": 0.0, "rules": {"port_stoppage": {"first": "open"}, "port_slowdown": {"mode": "keep"}}, "strict": true}}
+}

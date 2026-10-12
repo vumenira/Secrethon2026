@@ -1,0 +1,5 @@
+{
+ "f13_off": {"base": "mpc_pulse_rec_v13m", "params": {"strict": true, "guard": false, "mild_start": false, "strait_reserve": false}},
+ "f13_s26": {"base": "mpc_pulse_rec_v13m", "params": {"strict": true, "guard": false, "mild_start": false, "strait_reserve": true}},
+ "f13_def": {"base": "mpc_pulse_rec_v13m", "params": {"strict": true, "guard": false, "mild_start": true, "strait_reserve": true}}
+}

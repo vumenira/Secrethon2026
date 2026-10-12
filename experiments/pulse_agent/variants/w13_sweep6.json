@@ -1,0 +1,9 @@
+{
+ "w13_caution_1p2": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "caution": 1.2
+  }
+ }
+}

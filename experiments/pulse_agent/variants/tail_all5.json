@@ -1,0 +1,1 @@
+{"tail_all5": {"base": "mpc_pulse_rec_v9_tail", "params": {"strict": true, "tail_sync": true, "tail_lack": true, "tail_wait": true, "tail_idle": true, "tail_lapse": true}}}

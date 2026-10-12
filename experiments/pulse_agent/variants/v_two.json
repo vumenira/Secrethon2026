@@ -1,0 +1,20 @@
+{
+ "v_r12": {
+  "base": "mpc_pulse_rec_v4",
+  "params": {
+   "pulse_small": true,
+   "premium_small": true,
+   "premium_limit": true,
+   "strict": true
+  }
+ },
+ "v_r1": {
+  "base": "mpc_pulse_rec_v4",
+  "params": {
+   "pulse_small": true,
+   "premium_small": true,
+   "premium_limit": false,
+   "strict": true
+  }
+ }
+}

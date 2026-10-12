@@ -1,0 +1,3 @@
+{
+ "s13_mildb": {"base": "mpc_pulse_rec_v13s", "params": {"strict": true, "mild_start": true}}
+}

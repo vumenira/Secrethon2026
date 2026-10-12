@@ -1,0 +1,3 @@
+{
+ "t3a_e_w4": {"base": "buf_lp", "params": {"end_value": 1.0, "reserve_weeks": 4.0, "shed_ramp": 0.002, "strict": true}}
+}

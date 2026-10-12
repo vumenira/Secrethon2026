@@ -1,0 +1,44 @@
+{
+ "w13_pulse_fill_0p8": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_fill": 0.8
+  }
+ },
+ "w13_pulse_fill_1p0": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_fill": 1.0
+  }
+ },
+ "w13_pulse_margin_1p1": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_margin": 1.1
+  }
+ },
+ "w13_pulse_memory_2": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_memory": 2
+  }
+ },
+ "w13_pulse_memory_8": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_memory": 8
+  }
+ },
+ "w13_pulse_wafers_0p75": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_wafers": 0.75
+  }
+ }
+}

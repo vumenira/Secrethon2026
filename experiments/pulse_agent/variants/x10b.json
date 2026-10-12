@@ -1,0 +1,4 @@
+{
+ "x10_fhl": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_fuels": true, "schedule_hold": true, "schedule_left": true}},
+ "x10_fh": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_fuels": true, "schedule_hold": true}}
+}

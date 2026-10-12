@@ -1,0 +1,7 @@
+{
+ "v12_off": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "pipe_pulse": false, "lean_hold": false, "fuel_cancel_tariff": false, "hold_checks": []}},
+ "v12_a": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "pipe_pulse": true, "lean_hold": true, "fuel_cancel_tariff": false, "hold_checks": []}},
+ "v12_b": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "pipe_pulse": false, "lean_hold": false, "fuel_cancel_tariff": false, "hold_checks": ["together", "shock"]}},
+ "v12_c": {"base": "mpc_pulse_rec_v12", "params": {"strict": true, "pipe_pulse": false, "lean_hold": false, "fuel_cancel_tariff": true, "hold_checks": []}},
+ "v12_all": {"base": "mpc_pulse_rec_v12", "params": {"strict": true}}
+}

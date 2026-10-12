@@ -1,0 +1,5 @@
+{
+ "s_h24_w1": {"base": "mpc_pulse_rec_v8", "params": {"strict": true, "open_hold": true, "open_hold_first": 2, "open_hold_last": 4, "open_hold_short": 0.1, "open_hold_alone": true, "open_hold_recheck": false, "open_hold_draw": 2.0}},
+ "s_h24_any": {"base": "mpc_pulse_rec_v8", "params": {"strict": true, "open_hold": true, "open_hold_first": 2, "open_hold_last": 4, "open_hold_short": 0.1, "open_hold_alone": false, "open_hold_recheck": true, "open_hold_draw": 2.0}},
+ "s_h28": {"base": "mpc_pulse_rec_v8", "params": {"strict": true, "open_hold": true, "open_hold_first": 2, "open_hold_last": 8, "open_hold_short": 0.1, "open_hold_alone": true, "open_hold_recheck": true, "open_hold_draw": 2.0}}
+}

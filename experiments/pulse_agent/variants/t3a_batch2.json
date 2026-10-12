@@ -1,0 +1,6 @@
+{
+ "t3a_e10": {"base": "buf_lp", "params": {"end_value": 1.0, "strict": true}},
+ "t3a_w4_noramp": {"base": "buf_lp", "params": {"reserve_weeks": 4.0, "strict": true}},
+ "t3a_w4_lng": {"base": "buf_lp", "params": {"reserve_weeks": 4.0, "reserve_fuels": "rationed", "shed_ramp": 0.002, "strict": true}},
+ "t3a_w4_plo": {"base": "buf_lp", "params": {"reserve_weeks": 4.0, "reserve_price": 0.0001, "shed_ramp": 0.002, "strict": true}}
+}

@@ -1,0 +1,44 @@
+{
+ "w13_pulse_partial_0p35": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_partial": 0.35
+  }
+ },
+ "w13_pulse_partial_0p7": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_partial": 0.7
+  }
+ },
+ "w13_pulse_payback_8": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_payback": 8
+  }
+ },
+ "w13_pulse_payback_18": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_payback": 18
+  }
+ },
+ "w13_pulse_tail_1": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_tail": 1
+  }
+ },
+ "w13_pulse_tail_3": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "pulse_tail": 3
+  }
+ }
+}

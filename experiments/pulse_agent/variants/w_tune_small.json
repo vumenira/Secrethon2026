@@ -1,0 +1,4 @@
+{
+ "w_all": {"base": "mpc_pulse_rec_v3", "params": {"strict": true}},
+ "w_nowaf": {"base": "mpc_pulse_rec_v3", "params": {"pulse_wafers": 0.0, "strict": true}}
+}

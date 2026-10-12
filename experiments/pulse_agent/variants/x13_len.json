@@ -1,0 +1,4 @@
+{
+ "x13_s39": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard": false, "strait_weeks": 39.0}},
+ "x13_s52": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard": false, "strait_weeks": 52.0}}
+}

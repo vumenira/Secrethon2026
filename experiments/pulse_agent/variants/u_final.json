@@ -1,0 +1,6 @@
+{
+ "u_v6": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"strict": true}
+ }
+}

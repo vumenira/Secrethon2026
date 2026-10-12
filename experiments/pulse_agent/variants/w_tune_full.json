@@ -1,0 +1,4 @@
+{
+ "w_reg_v3": {"base": "mpc_pulse_rec_v3", "params": {"kinds": [], "strict": true}},
+ "w_all": {"base": "mpc_pulse_rec_v3", "params": {"strict": true}}
+}

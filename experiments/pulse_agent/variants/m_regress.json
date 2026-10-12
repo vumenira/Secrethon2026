@@ -1,0 +1,4 @@
+{
+ "m_reg_cg": {"base": "rec_merged", "params": {"kinds": ["closure", "grid"]}},
+ "m_reg_cap": {"base": "rec_merged", "params": {"kinds": ["capacity"]}}
+}

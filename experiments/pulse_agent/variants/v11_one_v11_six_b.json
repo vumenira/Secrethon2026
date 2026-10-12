@@ -1,0 +1,1 @@
+{"v11_six_b": {"base": "mpc_pulse_rec_v11", "params": {"strict": true, "hold_together": true, "pulse_hold_sales": true, "shock_hold": true, "schedule_ends": true, "schedule_runs": true, "premium_whole": false, "hold_small": false}}}

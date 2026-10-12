@@ -1,0 +1,1 @@
+{"mpc_det_h20": {}, "f_e10_w4": {"base": "mpc_buffer", "params": {"h_weeks": 20, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002}}, "f_e10": {"base": "mpc_buffer", "params": {"end_value": 1.0}}}

@@ -1,0 +1,3 @@
+{
+ "x10_fh2": {"base": "mpc_pulse_rec_v10", "params": {"strict": true, "schedule_fuels": true, "schedule_hold": true}}
+}

@@ -1,0 +1,3 @@
+{
+ "sm_off": {"base": "mpc_pulse_rec_v12b", "params": {"strict": true, "hold_checks": []}}
+}

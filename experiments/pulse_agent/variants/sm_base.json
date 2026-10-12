@@ -1,0 +1,4 @@
+{
+ "sm_v10": {"base": "mpc_pulse_rec_v10", "params": {"strict": true}},
+ "sm_v11": {"base": "mpc_pulse_rec_v11", "params": {"strict": true}}
+}

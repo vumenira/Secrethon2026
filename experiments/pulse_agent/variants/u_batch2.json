@@ -1,0 +1,10 @@
+{
+ "u_fit2": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"fuel_cancel": false, "ration_trim": false, "wafers_fit": true, "strict": true}
+ },
+ "u_trim_nogate": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"fuel_cancel": false, "ration_trim": true, "ration_trim_margin": 0.0, "ration_trim_cover": 1000.0, "wafers_fit": false, "strict": true}
+ }
+}

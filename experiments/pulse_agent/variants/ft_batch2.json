@@ -1,0 +1,5 @@
+{
+ "ft_pulse": {"base": "ft_buffer", "params": {"h_weeks": 20, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002, "pulse": true, "strict": true}},
+ "ft_pulse_r4": {"base": "ft_buffer", "params": {"h_weeks": 20, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002, "pulse": true, "pulse_run": 4, "strict": true}},
+ "ft_pulse_h12": {"base": "ft_buffer", "params": {"h_weeks": 20, "end_value": 1.0, "reserve_weeks": 4.0, "reserve_price": 0.001, "reserve_fuels": "all", "shed_ramp": 0.002, "pulse": true, "pulse_hold_weeks": 12, "strict": true}}
+}

@@ -1,0 +1,9 @@
+{
+ "t3b_base3": {"base": "buf_knobs", "params": {}},
+ "t3b_h40": {"base": "buf_knobs", "params": {"h_weeks": 40}},
+ "t3b_d105": {"base": "buf_knobs", "params": {"demand_scale": 1.05}},
+ "t3b_d110": {"base": "buf_knobs", "params": {"demand_scale": 1.1}},
+ "t3b_d120": {"base": "buf_knobs", "params": {"demand_scale": 1.2}},
+ "t3b_k90": {"base": "buf_knobs", "params": {"throughput_scale": 0.9}},
+ "t3b_k80": {"base": "buf_knobs", "params": {"throughput_scale": 0.8}}
+}

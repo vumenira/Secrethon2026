@@ -1,0 +1,6 @@
+{
+ "u_reg_off2": {
+  "base": "mpc_pulse_rec_v6",
+  "params": {"fuel_cancel": false, "ration_trim": false, "wafers_fit": false, "strict": true}
+ }
+}

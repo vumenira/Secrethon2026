@@ -1,0 +1,44 @@
+{
+ "w13_reserve_price_0p002": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "reserve_price": 0.002
+  }
+ },
+ "w13_shed_ramp_0p001": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "shed_ramp": 0.001
+  }
+ },
+ "w13_shed_ramp_0p004": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "shed_ramp": 0.004
+  }
+ },
+ "w13_short_premium_0p7": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "short_premium": 0.7
+  }
+ },
+ "w13_short_premium_1p4": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "short_premium": 1.4
+  }
+ },
+ "w13_end_value_1p75": {
+  "base": "mpc_pulse_rec_v12",
+  "params": {
+   "strict": true,
+   "end_value": 1.75
+  }
+ }
+}

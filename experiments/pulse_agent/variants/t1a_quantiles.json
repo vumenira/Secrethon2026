@@ -1,0 +1,5 @@
+{
+ "t1a_cap_q50": {"base": "mpc_recovery", "params": {"kinds": ["capacity"], "mode": "quantile", "quantile": 0.5}},
+ "t1a_cap_q80": {"base": "mpc_recovery", "params": {"kinds": ["capacity"], "mode": "quantile", "quantile": 0.8}},
+ "t1a_cap_q95": {"base": "mpc_recovery", "params": {"kinds": ["capacity"], "mode": "quantile", "quantile": 0.95}}
+}

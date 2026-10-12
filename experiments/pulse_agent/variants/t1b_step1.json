@@ -1,0 +1,6 @@
+{
+ "t1b_mean_cg": {"base": "mpc_recovery", "params": {"kinds": ["closure", "grid"]}},
+ "t1b_truth_cg": {"base": "mpc_recovery", "params": {"kinds": ["closure", "grid"]}, "truth": ["closure", "grid"]},
+ "t1b_q50_closure": {"base": "mpc_recovery", "params": {"kinds": ["closure"], "mode": "quantile", "quantile": 0.5}},
+ "t1b_q50_grid": {"base": "mpc_recovery", "params": {"kinds": ["grid"], "mode": "quantile", "quantile": 0.5}}
+}

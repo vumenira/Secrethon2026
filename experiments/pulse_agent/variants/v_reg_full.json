@@ -1,0 +1,21 @@
+{
+ "v_reg_v4": {
+  "base": "mpc_pulse_rec_v4",
+  "params": {
+   "kinds": [],
+   "pulse_small": true,
+   "premium_small": true,
+   "premium_limit": true,
+   "strict": true
+  }
+ },
+ "v_reg_v3": {
+  "base": "mpc_pulse_rec_v4",
+  "params": {
+   "pulse_small": false,
+   "premium_small": false,
+   "premium_limit": false,
+   "strict": true
+  }
+ }
+}

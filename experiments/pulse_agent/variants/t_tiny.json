@@ -1,0 +1,5 @@
+{
+ "t_v7": {"base": "mpc_pulse_rec_v7", "params": {"strict": true}},
+ "t_v7_all": {"base": "mpc_pulse_rec_v7", "params": {"strict": true, "osat_fit": true}},
+ "u_v6": {"base": "mpc_pulse_rec_v6", "params": {"strict": true}}
+}

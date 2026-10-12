@@ -1,0 +1,5 @@
+{
+ "t13_naive1": {"base": "tmp_v13_naive", "params": {"strict": true, "test_naive_weeks": [1]}},
+ "t13_naive12": {"base": "tmp_v13_naive", "params": {"strict": true, "test_naive_weeks": [1, 2]}},
+ "t13_naive30": {"base": "tmp_v13_naive", "params": {"strict": true, "test_naive_weeks": [30]}}
+}

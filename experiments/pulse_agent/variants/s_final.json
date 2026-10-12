@@ -1,0 +1,4 @@
+{
+ "s_v8": {"base": "mpc_pulse_rec_v8", "params": {"strict": true}},
+ "s_v8_on": {"base": "mpc_pulse_rec_v8", "params": {"strict": true, "open_hold": true}}
+}

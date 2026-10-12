@@ -1,0 +1,6 @@
+{
+ "t1b_v2_mean_cg": {"base": "rec_rule", "params": {"kinds": ["closure", "grid"], "mode": "mean", "quantile": 0.5, "caution": 1.0, "rules": {}}},
+ "t1b_v2_grid_q25": {"base": "rec_rule", "params": {"kinds": ["closure", "grid"], "mode": "mean", "quantile": 0.5, "caution": 1.0, "rules": {"grid": {"mode": "quantile", "quantile": 0.25}}}},
+ "t1b_v2_mil_c2": {"base": "rec_rule", "params": {"kinds": ["closure", "grid"], "mode": "mean", "quantile": 0.5, "caution": 1.0, "rules": {"militarised_closure": {"caution": 2.0}}}},
+ "t1b_v2_wea_c05": {"base": "rec_rule", "params": {"kinds": ["closure", "grid"], "mode": "mean", "quantile": 0.5, "caution": 1.0, "rules": {"weather_closure": {"caution": 0.5}}}}
+}

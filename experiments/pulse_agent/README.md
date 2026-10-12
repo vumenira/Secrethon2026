@@ -900,6 +900,17 @@ uv run python experiments/approaches/tune.py report --base=mpc_det_h20 --task=fu
 
 `report` prints every cached variant against the base with a 90 % paired bootstrap interval.
 
+The variants files that were played are in [variants/](variants/): 211 files, 421 variants, 370 of them played (a
+file is named after its batch; `w13_sweep1` to `5` were prepared and not played). The cache and the harness's copies
+of the agents were deleted with that machine's `outputs/` on 2026-10-12, so a number is replayed from its file, not
+looked up. 69 variants name a base that is no longer anywhere:
+
+- `mpc_pulse_rec_v13s`, `mpc_pulse_rec_v13r`, `mpc_pulse_rec_v13w` (the three work folders v13 was built in: files
+  `s13*`, `r13_*`, `a13_*`) and `mpc_pulse_rec_v13m` (their merge: `m13_*`, `f13_*`). What was kept of them is in
+  `agents/mpc_pulse_rec_v13` behind the switches named above, so set `base` to it.
+- `tmp_v13_naive` (`v13_naive.json`: chosen weeks played by the naive rule) and three scratch snapshots of v12a
+  (`p2_v12a*.json`). These cannot be replayed.
+
 ## After v8 (2026-10-08)
 
 - **`agents/mpc_pulse_rec_v9b`:** `mpc_pulse_rec_v8_on` with `pulse_run` 6 (was 4), no code change. About +0.0005

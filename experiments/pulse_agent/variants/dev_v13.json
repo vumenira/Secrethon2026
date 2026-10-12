@@ -1,0 +1,4 @@
+{
+ "d_v13": {"base": "mpc_pulse_rec_v13", "params": {"strict": true, "guard": false}},
+ "d_v12": {"base": "mpc_pulse_rec_v12", "params": {"strict": true}}
+}

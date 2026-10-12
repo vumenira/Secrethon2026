@@ -1,0 +1,6 @@
+{
+ "t_off": {"base": "mpc_pulse_rec_v7", "params": {"strict": true}},
+ "t_rel": {"base": "mpc_pulse_rec_v7", "params": {"strict": true, "ration_trim_release": true}},
+ "t_fuel": {"base": "mpc_pulse_rec_v7", "params": {"strict": true, "fuel_trim": true}},
+ "t_rel_fuel": {"base": "mpc_pulse_rec_v7", "params": {"strict": true, "ration_trim_release": true, "fuel_trim": true}}
+}

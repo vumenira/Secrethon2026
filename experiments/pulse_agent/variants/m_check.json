@@ -1,0 +1,3 @@
+{
+ "m_all_h24_ff": {"base": "rec_merged", "params": {"h_weeks": 24, "kinds": ["closure", "capacity", "grid"]}, "truth": ["none"]}
+}
